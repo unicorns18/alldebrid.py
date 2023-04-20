@@ -449,6 +449,8 @@ class AllDebrid:
         response = self._request(method="POST", endpoint=endpoint, params=params)
 
         if response.get("status") == "error":
+            if response["error"]["code"] == "NO_SERVER":
+                raise ValueError("API key is required for this endpoint")
             raise AllDebridError(response["error"]["code"], response["error"]["message"])
         
         return response
