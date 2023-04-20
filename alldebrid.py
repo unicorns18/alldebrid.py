@@ -1,20 +1,41 @@
+#pylint: disable=C0301
 """
-Module for interacting with the AllDebrid API.
+The AllDebrid class is designed to interact with the AllDebrid API. It takes an API key as a parameter and provides methods to make requests to various endpoints of the API. The class can be used to ping the API, get a pin, check a pin, get user information, unlock download links, get streaming links, upload magnets and files, check magnet status, delete magnets, restart magnets, check magnet instant, get saved links, save new links, delete saved links, get recent links, and purge recent links.
 
 Classes
 -------
 AllDebrid
     Class for interacting with the AllDebrid API.
 
+Fields
+------
+apikey: str
+
 Functions
 ---------
-ping() -> dict
-    Makes a request to the ping endpoint.
+- ping(): Makes a request to the ping endpoint and returns the response from the API.
+- get_pin(): Makes a request to the get pin endpoint and returns the response from the API. Raises requests.exceptions.Timeout if the request times out.
+- check_pin(): Makes a request to the check pin endpoint and returns the response from the API.
+- user(): Makes a request to the user endpoint and returns the response from the API.
+- download_link(): Makes a request to the download link endpoint and returns the response from the API.
+- streaming_links(): Makes a request to the streaming links endpoint and returns the response from the API.
+- delayed_links(): Makes a request to the delayed links endpoint and returns the response from the API.
+- upload_magnets(): Makes a request to the upload magnets endpoint and returns the response from the API.
+- upload_file(): Makes a request to the upload file endpoint and returns the response from the API.
+- get_magnet_status(): Makes a request to the magnet status endpoint and returns the response from the API.
+- delete_magnet(): Makes a request to the delete magnet endpoint and returns the response from the API.
+- restart_magnet(): Makes a request to the restart magnet endpoint and returns the response from the API.
+- check_magnet_instant(): Makes a request to the check magnet instant endpoint and returns the response from the API.
+- saved_links(): Makes a request to the saved links endpoint and returns the response from the API.
+- save_new_link(): Makes a request to the save new link endpoint and returns the response from the API.
+- delete_saved_link(): Makes a request to the delete saved link endpoint and returns the response from the API.
+- recent_links(): Makes a request to the recent links endpoint and returns the response from the API.
+- purge_recent_links(): Makes a request to the purge recent links endpoint and returns the response from the API.
 
 Exceptions
 ----------
-requests.exceptions.Timeout
-    If the request times out.
+AllDebridError
+    Raised when an error occurs with the API.
 
 Examples
 --------
@@ -235,6 +256,8 @@ class AllDebrid:
         response = self._request(method="GET", endpoint=endpoint)
 
         if response.get("status") == "error":
+            if response["error"]["code"] == "AUTH_MISSING_APIKEY":
+                raise ValueError("API key is required for this endpoint")
             raise AllDebridError(response["error"]["code"], response["error"]["message"])
         
         return response
