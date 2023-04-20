@@ -44,7 +44,6 @@ Examples
 >>> ad.ping()
 {'status': 'success', 'data': {'ping': 'pong'}}
 """
-import os
 from typing import Any, Dict, List, Optional, Union
 import requests
 
@@ -153,6 +152,7 @@ class AllDebrid:
     apikey : str
         The API key to use for the requests.
     """
+    # TODO: In all the methods, add more detailed error messages to the raise ValueError statements, so that the user can understand why the error occurred. For example, instead of raising a ValueError("Endpoint not found for Delayed links"), raise a ValueError("Endpoint not found for Delayed links. Please check if the endpoint is correct.").
 
     def __init__(self, apikey: str) -> None:
         """
@@ -169,12 +169,15 @@ class AllDebrid:
         dict
             The response from the API.
         """
+        # TODO: Refactor to handle cases where endpoints.get("ping") returns None.
         try:
             endpoint = endpoints.get("ping")
         except KeyError as exc:
             raise ValueError("Endpoint not found") from exc
         # if endpoint is None:
         #     raise ValueError("Endpoint not found")
+
+        # TODO: Add error handling for cases where the API request fails.
 
         return self._request(method="GET", endpoint=endpoint)
     
@@ -203,7 +206,7 @@ class AllDebrid:
         
         return response
     
-    def check_pin(self, get_pin_response=None, hash=None, pin=None) -> dict:
+    def check_pin(self, get_pin_response=None, hash_value=None, pin=None) -> dict:
         """
         Makes a request to the check pin endpoint.
 
@@ -221,12 +224,14 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        if get_pin_response is None and (hash is None or pin is None):
+        #TODO: Add error handling for cases where the API request fails.
+
+        if get_pin_response is None and (hash_value is None or pin is None):
             raise ValueError("Either get_pin_response or hash and pin must be provided")
 
         useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36"
         params = {
-            "check": hash,
+            "check": hash_value,
             "pin": pin,
             "agent": useragent
         }
@@ -502,7 +507,7 @@ class AllDebrid:
         
         return response
 
-    def restart_magnet(self, id: Optional[int] = None, ids: Optional[List[int]] = None) -> dict:
+    def restart_magnet(self, magnet_id: Optional[int] = None, ids: Optional[List[int]] = None) -> dict:
         """
         Makes a request to the restart magnet endpoint.
 
@@ -525,14 +530,14 @@ class AllDebrid:
             >>> restarted = ad.restart_magnet(id=magnet_id)
             >>> print(json.dumps(restarted, indent=4, sort_keys=True))
         """
-        if id is None and ids is None:
+        if magnet_id is None and ids is None:
             raise ValueError("Magnet ID not found for restart magnet")
         
         endpoint = endpoints.get("restart")
         if endpoint is None:
             raise ValueError("Endpoint not found for restart magnet")
-        if id is not None:
-            response = self._request(method="GET", endpoint=endpoint, params={"id": id})
+        if magnet_id is not None:
+            response = self._request(method="GET", endpoint=endpoint, params={"id": magnet_id})
         else:
             response = self._request(method="GET", endpoint=endpoint, params={"ids": ids})
             
