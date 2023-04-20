@@ -5,9 +5,11 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 from alldebrid import AllDebrid, AllDebridError, endpoints, HOST
 
-load_dotenv(dotenv_path="../.env.sample", verbose=True)
+load_dotenv()
 
 apikey = os.getenv("ALLDEBRID_API_KEY")
+if not apikey:
+    raise ValueError("API key not found in .env file")
 
 class TestAllDebrid:
     """
