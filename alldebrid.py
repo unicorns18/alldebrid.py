@@ -375,7 +375,7 @@ class AllDebrid:
 
         return response
     
-    def delayed_links(self, id: str) -> dict:
+    def delayed_links(self, download_id: str) -> dict:
         """
         Makes a request to the delayed links endpoint.
 
@@ -386,7 +386,7 @@ class AllDebrid:
 
         Parameters
         ----------
-        id : str
+        download_id : str
             The id of the link to check.
 
         Returns
@@ -401,7 +401,7 @@ class AllDebrid:
         AllDebridError
             If the API returns an error.
         """
-        if id is None:
+        if download_id is None:
             raise ValueError("ID not found for delayed links")
         
         endpoint = endpoints.get("delayed links")
@@ -409,7 +409,7 @@ class AllDebrid:
         if endpoint is None:
             raise ValueError("Endpoint not found for Delayed links")
         
-        response = self._request(method="GET", endpoint=endpoint, params={"id": id})
+        response = self._request(method="GET", endpoint=endpoint, params={"id": download_id})
 
         if response.get("status") == "error":
             raise AllDebridError(response["error"]["code"], response["error"]["message"])
