@@ -44,6 +44,7 @@ Examples
 >>> ad.ping()
 {'status': 'success', 'data': {'ping': 'pong'}}
 """
+import os
 from typing import Any, Dict, List, Optional, Union
 import requests
 
@@ -405,6 +406,9 @@ class AllDebrid:
         """
         if not files:
             raise ValueError("No files to upload")
+        
+        if not os.path.exists(files):
+            raise FileNotFoundError("File not found")
 
         # TODO: Support multiple files at once
         file = {'files[0]': open(files, 'rb')}
