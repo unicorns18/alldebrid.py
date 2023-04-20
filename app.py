@@ -13,3 +13,4 @@ alldebrid = AllDebrid(apikey=os.getenv('APIKEY'))
 ping = alldebrid.ping()
 print('Ping:', ping)
 # Ping: {'status': 'success', 'data': {'ping': 'pong'}}
+
