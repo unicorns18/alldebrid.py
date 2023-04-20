@@ -109,27 +109,27 @@ apiErrors = {
     'INSUFFICIENT_BALANCE': 'Your current reseller balance is not enough to generate the requested vouchers', #pylint: disable=C0301
 }
 endpoints = {
-    "Ping": "ping",
-    "Get pin": "pin/get",
-    "Check pin": "pin/check",
-    "User": "user",
-    "Download link": "link/unlock",
-    "Streaming links": "link/streaming",
-    "Delayed links": "link/delayed",
-    "Upload magnet": "magnet/upload",
-    "Upload file": "magnet/upload/file",
-    "Status": "magnet/status",
-    "Delete": "magnet/delete",
-    "Restart": "magnet/restart",
-    "Instant": "magnet/instant",
-    "Saved links": "user/links",
-    "Save a link": "user/links/save",
-    "Delete saved link": "user/links/delete",
-    "Recent links": "user/history",
-    "Purge history": "user/history/delete"
+    "ping": "ping",
+    "get pin": "pin/get",
+    "check pin": "pin/check",
+    "user": "user",
+    "download link": "link/unlock",
+    "streaming links": "link/streaming",
+    "delayed links": "link/delayed",
+    "upload magnet": "magnet/upload",
+    "upload file": "magnet/upload/file",
+    "status": "magnet/status",
+    "delete": "magnet/delete",
+    "restart": "magnet/restart",
+    "instant": "magnet/instant",
+    "saved links": "user/links",
+    "save a link": "user/links/save",
+    "delete saved link": "user/links/delete",
+    "recent links": "user/history",
+    "purge history": "user/history/delete"
 }
 
-class AllDebridError(Exception):
+class AllDebridError(ValueError):
     """
     Alldebrid error
     """
@@ -168,7 +168,7 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        endpoint = endpoints.get("Ping")
+        endpoint = endpoints.get("ping")
         if endpoint is None:
             raise ValueError("Endpoint not found")
 
@@ -188,7 +188,7 @@ class AllDebrid:
         requests.exceptions.Timeout
             If the request times out.
         """
-        endpoint = endpoints.get("Get pin")
+        endpoint = endpoints.get("get pin")
         if endpoint is None:
             raise ValueError("Endpoint not found")
 
@@ -226,7 +226,7 @@ class AllDebrid:
             "agent": "python"
         }
 
-        endpoint = endpoints.get("Check pin")
+        endpoint = endpoints.get("check pin")
         if endpoint is None:
             raise ValueError("Endpoint not found for Check pin")
         
@@ -249,7 +249,7 @@ class AllDebrid:
         if self.apikey is None:
             raise ValueError("API key is required for this endpoint")
         
-        endpoint = endpoints.get("User")
+        endpoint = endpoints.get("user")
         if endpoint is None:
             raise ValueError("Endpoint not found for User")
 
@@ -277,6 +277,9 @@ class AllDebrid:
             The response from the API.
         """
         # TODO: Support passwords for links, if it has one.
+        endpoint = endpoints.get("download link")
+        if endpoint is None:
+            raise ValueError("Endpoint not found for download link")
 
         if isinstance(links, str):
             links = [links]
@@ -284,10 +287,6 @@ class AllDebrid:
             "link": links,
             "agent": "python"
         }
-
-        endpoint = endpoints.get("Download link")
-        if endpoint is None:
-            raise ValueError("Endpoint not found for Download link")
         
         response = self._request(method="GET", endpoint=endpoint, params=params)
         if response.get("status") == "error":
@@ -315,7 +314,7 @@ class AllDebrid:
             "agent": "python"
         }
 
-        endpoint = endpoints.get("Streaming links")
+        endpoint = endpoints.get("streaming links")
         if endpoint is None:
             raise ValueError("Endpoint not found for Streaming links")
 
@@ -348,7 +347,7 @@ class AllDebrid:
         if id is None:
             raise ValueError("ID not found for delayed links")
         
-        endpoint = endpoints.get("Delayed links")
+        endpoint = endpoints.get("delayed links")
 
         if endpoint is None:
             raise ValueError("Endpoint not found for Delayed links")
@@ -379,7 +378,7 @@ class AllDebrid:
             "agent": "python"
         }
 
-        endpoint = endpoints.get("Upload magnet")
+        endpoint = endpoints.get("upload magnet")
         if endpoint is None:
             raise ValueError("Endpoint not found for Upload magnets")
         
@@ -410,7 +409,7 @@ class AllDebrid:
         # TODO: Support multiple files at once
         file = {'files[0]': open(files, 'rb')}
 
-        endpoint = endpoints.get("Upload file")
+        endpoint = endpoints.get("upload file")
         if endpoint is None:
             raise ValueError("Endpoint not found for Upload file")
 
@@ -444,7 +443,7 @@ class AllDebrid:
         if magnet_id is None:
             raise ValueError("Magnet ID not found for magnet status")
         
-        endpoint = endpoints.get("Status")
+        endpoint = endpoints.get("status")
         if endpoint is None:
             raise ValueError("Endpoint not found for Magnet status")
 
@@ -479,7 +478,7 @@ class AllDebrid:
         if magnet_id is None:
             raise ValueError("Magnet ID not found for delete magnet")
         
-        endpoint = endpoints.get("Delete")
+        endpoint = endpoints.get("delete")
         if endpoint is None:
             raise ValueError("Endpoint not found for delete magnet")
 
@@ -516,7 +515,7 @@ class AllDebrid:
         if id is None and ids is None:
             raise ValueError("Magnet ID not found for restart magnet")
         
-        endpoint = endpoints.get("Restart")
+        endpoint = endpoints.get("restart")
         if endpoint is None:
             raise ValueError("Endpoint not found for restart magnet")
         if id is not None:
@@ -543,7 +542,7 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        endpoint = endpoints.get("Instant")
+        endpoint = endpoints.get("instant")
         if endpoint is None:
             raise ValueError("Endpoint not found for check magnet instant")
 
@@ -569,7 +568,7 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        endpoint = endpoints.get("Saved links")
+        endpoint = endpoints.get("saved links")
         if endpoint is None:
             raise ValueError("Endpoint not found for saved links")
         
@@ -597,7 +596,7 @@ class AllDebrid:
         if link_id is None:
             raise ValueError("No link id to save")
 
-        endpoint = endpoints.get("Save a link")
+        endpoint = endpoints.get("save a link")
         if endpoint is None:
             raise ValueError("Endpoint not found for save new link")
         
@@ -617,7 +616,7 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        endpoint = endpoints.get("Delete saved link")
+        endpoint = endpoints.get("delete saved link")
         if endpoint is None:
             raise ValueError("Endpoint not found for delete saved link")
         
@@ -637,7 +636,7 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        endpoint = endpoints.get("Recent links")
+        endpoint = endpoints.get("recent links")
         if endpoint is None:
             raise ValueError("Endpoint not found for recent links")
         
@@ -657,7 +656,7 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        endpoint = endpoints.get("Purge history")
+        endpoint = endpoints.get("purge history")
         if endpoint is None:
             raise ValueError("Endpoint not found for purge recent links")
         
@@ -715,7 +714,9 @@ class AllDebrid:
             links = []
 
         if endpoint is None:
-            raise ValueError("Endpoint not found for " + endpoint)
+            raise ValueError(f"Endpoint not found for {endpoint}")
+        if endpoint not in endpoints.values():
+            raise ValueError(f"Invalid endpoint: {endpoint}")
 
         url = HOST + endpoint + "?agent=" + agent
 
