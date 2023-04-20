@@ -124,6 +124,11 @@ class TestAllDebrid:
         """
         Test that calling the upload_file method with files returns a valid response from the API.
         """
+        if not os.path.exists("test_file.txt"):
+            with open("test_file.txt", "w") as f:
+                f.write("This is a test file.")
+                f.close()
+        
         ad = AllDebrid(apikey=apikey)
         response = ad.upload_file(files="test_file.txt")
         assert response.get("status") == "success"
