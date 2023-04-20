@@ -28,6 +28,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8 pytest python-dotenv requests
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Load environment variables from .env file
+      env:
+        API_KEY: ${{ secrets.API_KEY }}
+      run: |
+        echo "API_KEY=${API_KEY}" >> .env
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
