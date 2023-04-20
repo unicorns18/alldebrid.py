@@ -166,8 +166,15 @@ class AllDebrid:
         
         Returns
         -------
-        dict
+        Dict[str, Any]
             The response from the API.
+
+        Raises
+        ------
+        ValueError
+            If the endpoint is not found.
+        AllDebridError
+            If the API returns an error.
         """
         # TODO: Refactor to handle cases where endpoints.get("ping") returns None.
         try:
@@ -177,9 +184,12 @@ class AllDebrid:
         # if endpoint is None:
         #     raise ValueError("Endpoint not found")
 
-        # TODO: Add error handling for cases where the API request fails.
+        response = self._request(method="GET", endpoint=endpoint)
 
-        return self._request(method="GET", endpoint=endpoint)
+        if response.get("status") == "error":
+            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+
+        return response
     
     def get_pin(self) -> dict:
         """
@@ -192,8 +202,10 @@ class AllDebrid:
 
         Raises
         ------
-        requests.exceptions.Timeout
-            If the request times out.
+        ValueError
+            If the endpoint is not found.
+        AllDebridError
+            If the API returns an error.
         """
         endpoint = endpoints.get("get pin")
         if endpoint is None:
@@ -216,13 +228,20 @@ class AllDebrid:
             The response from the get pin endpoint.
         pin : str
             The pin to check.
-        hash : str
+        hash_value : str
             The hash to check.
 
         Returns
         -------
         dict
             The response from the API.
+
+        Raises
+        ------
+        ValueError
+            If neither get_pin_response nor hash_value and pin are provided.
+        AllDebridError
+            If the API returns an error.
         """
         #TODO: Add error handling for cases where the API request fails.
 
@@ -255,6 +274,13 @@ class AllDebrid:
         -------
         dict
             The response from the API.
+
+        Raises
+        ------
+        ValueError
+            If the API key is not provided.
+        AllDebridError
+            If the API returns an error.
         """
         if self.apikey is None:
             raise ValueError("API key is required for this endpoint")
@@ -283,8 +309,15 @@ class AllDebrid:
 
         Returns
         -------
-        dict
+        Dict[str, Any]
             The response from the API.
+
+        Raises
+        ------
+        ValueError
+            If the endpoint is not found.
+        AllDebridError
+            If the API returns an error.
         """
         # TODO: Support passwords for links, if it has one.
         endpoint = endpoints.get("download link")
@@ -317,6 +350,13 @@ class AllDebrid:
         -------
         dict
             The response from the API.
+        
+        Raises
+        ------
+        ValueError
+            If the endpoint is not found.
+        AllDebridError
+            If the API returns an error.
         """
         # TODO: Add a stream id (from link/unlock)
         params = {
@@ -335,7 +375,7 @@ class AllDebrid:
 
         return response
     
-    def delayed_links(self, id: str) -> dict: # pylint: disable=redefined-builtin,C0103
+    def delayed_links(self, id: str) -> dict:
         """
         Makes a request to the delayed links endpoint.
 
@@ -353,6 +393,13 @@ class AllDebrid:
         -------
         dict
             The response from the API.
+
+        Raises
+        ------
+        ValueError
+            If the id is not found.
+        AllDebridError
+            If the API returns an error.
         """
         if id is None:
             raise ValueError("ID not found for delayed links")
@@ -382,6 +429,13 @@ class AllDebrid:
         -------
         dict
             The response from the API.
+
+        Raises
+        ------
+        ValueError
+            If the magnets are not found.
+        AllDebridError
+            If the API returns an error.
         """
         params = {
             "magnets": magnets,
@@ -412,6 +466,13 @@ class AllDebrid:
         -------
         dict
             The response from the API.
+
+        Raises
+        ------
+        ValueError
+            If the file is not found.
+        AllDebridError
+            If the API returns an error.
         """
         if not files:
             raise ValueError("No files to upload")
@@ -433,6 +494,9 @@ class AllDebrid:
 
         response = self._request(method="POST", endpoint=endpoint, files=file)
 
+        if response.get("status") == "error":
+            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+
         return response
 
     def get_magnet_status(self, magnet_id: Optional[int] = None) -> dict:
@@ -443,20 +507,18 @@ class AllDebrid:
         ----------
         magnet_id : Optional[int]
             The magnet id to check.
-        status : Optional[str]
-            The status of the magnet.
         
         Returns
         -------
         dict
             The response from the API.
         
-        Example
-        -------
-            >>> # magnet is the magnet id returned from the upload magnets endpoint.
-            >>> magnet_id = upload['data']['files'][0]['id']
-            >>> magnet_status = ad.get_magnet_status(magnet_id=magnet_id)
-            >>> print(json.dumps(magnet_status, indent=4, sort_keys=True))
+        Raises
+        ------
+        AllDebridError
+            If the API returns an error.
+        ValueError
+            If the magnet id is not found.
         """
         if magnet_id is None:
             raise ValueError("Magnet ID not found for magnet status")
@@ -486,12 +548,12 @@ class AllDebrid:
         dict
             The response from the API.
 
-        Example
-        -------
-            >>> # magnet is the magnet id returned from the upload magnets endpoint.
-            >>> magnet_id = upload['data']['files'][0]['id']
-            >>> deleted = ad.delete_magnet(magnet_id=magnet_id)
-            >>> print(json.dumps(deleted, indent=4, sort_keys=True))
+        Raises
+        ------
+        AllDebridError
+            If the API returns an error.
+        ValueError
+            If the magnet id is not found.
         """
         if magnet_id is None:
             raise ValueError("Magnet ID not found for delete magnet")
@@ -523,12 +585,12 @@ class AllDebrid:
         dict
             The response from the API.
 
-        Example
-        -------
-            >>> # magnet is the magnet id returned from the upload magnets endpoint.
-            >>> magnet_id = upload['data']['files'][0]['id']
-            >>> restarted = ad.restart_magnet(id=magnet_id)
-            >>> print(json.dumps(restarted, indent=4, sort_keys=True))
+        Raises
+        ------
+        AllDebridError
+            If the API returns an error.
+        ValueError
+            If no magnet id or ids are provided.
         """
         if magnet_id is None and ids is None:
             raise ValueError("Magnet ID not found for restart magnet")
@@ -548,17 +610,24 @@ class AllDebrid:
 
     def check_magnet_instant(self, magnets: Optional[Union[str, List[str]]] = None) -> dict:
         """
-        Makes a request to the check magnet instant endpoint.
+        Check instant availability of magnets.
 
         Parameters
         ----------
-        magnets : Optional[Union[str, List[str]]]
-            The magnets to check.
+        magnets: Union[str, List[str]], optional
+            Magnets to check.
 
         Returns
         -------
         dict
-            The response from the API.
+            Instant availability of magnets.
+
+        Raises
+        ------
+        AllDebridError
+            If the AllDebrid API returns an error.
+        ValueError
+            If endpoint is not found.
         """
         endpoint = endpoints.get("instant")
         if endpoint is None:
@@ -579,12 +648,19 @@ class AllDebrid:
     
     def saved_links(self) -> dict:
         """
-        Makes a request to the saved links endpoint.
+        Get a list of all the links saved in the account.
 
         Returns
         -------
-        dict
-            The response from the API.
+        dict:
+            Links saved in the account.
+
+        Raises
+        ------
+        AllDebridError
+            If request is unsuccessful.
+        ValueError
+            If endpoint is not found.
         """
         endpoint = endpoints.get("saved links")
         if endpoint is None:
@@ -599,17 +675,24 @@ class AllDebrid:
 
     def save_new_link(self, link_id: Optional[Union[str, List[str]]]) -> dict:
         """
-        Makes a request to the save new link endpoint.
+        Save a new link.
 
         Parameters
         ----------
-        link_id : Optional[Union[str, List[str]]]
-            The link id to save.
+        link_id: Optional[Union[str, List[str]]]
+            Link id to save.
 
         Returns
         -------
         dict
-            The response from the API.
+            Response of request.
+
+        Raises
+        ------
+        AllDebridError
+            If request is unsuccessful.
+        ValueError
+            If endpoint is not found.
         """
         if link_id is None:
             raise ValueError("No link id to save")
@@ -627,12 +710,24 @@ class AllDebrid:
 
     def delete_saved_link(self, links: Optional[List[str]] = None) -> dict:
         """
-        Makes a request to the delete saved link endpoint.
+        Delete saved links.
+
+        Parameters
+        ----------
+        links: Optional[List[str]]
+            List of links.
 
         Returns
         -------
         dict
-            The response from the API.
+            Response of api.
+
+        Raises
+        ------
+        AllDebridError
+            If request is unsuccessful.
+        ValueError
+            If endpoint is not found.
         """
         endpoint = endpoints.get("delete saved link")
         if endpoint is None:
@@ -647,12 +742,12 @@ class AllDebrid:
 
     def recent_links(self) -> dict:
         """
-        Makes a request to the recent links endpoint.
+        Get recent links.
 
         Returns
         -------
         dict
-            The response from the API.
+            Returns a dict containing all the recent links.
         """
         endpoint = endpoints.get("recent links")
         if endpoint is None:
@@ -665,14 +760,21 @@ class AllDebrid:
         
         return response
 
-    def purge_recent_links(self):
+    def purge_recent_links(self) -> dict:
         """
-        Makes a request to the purge recent links endpoint.
+        Purge all the recent links.
 
         Returns
         -------
         dict
-            The response from the API.
+            Response of the API.
+
+        Raises
+        ------
+        AllDebridError
+            If any error occurred while purging recent links.
+        ValueError
+            If the endpoint is not found.
         """
         endpoint = endpoints.get("purge history")
         if endpoint is None:
@@ -697,27 +799,32 @@ class AllDebrid:
             timeout: int = 10,
         ) -> dict:
         """
-        Send a request to the server.
+        Make the request to the API.
 
         Parameters
         ----------
+        method: str
+            Method of the request.
         endpoint: str
-            Endpoint of server.
-        agent: str (default: "python")
-            User agent.
-        params: dict (default: None)
-            Query params.
-        files: dict (default: None)
-            Files to upload.
-        magnets: str (default: None)
-            List of magnets to upload.
-        timeout: int (default: 10)
-            Timeout in seconds.
+            Endpoint of the request.
+        agent: str
+            User Agent.
+        params: Optional[Dict[str, Any]]
+            Parameters of the request.
+        files: Optional[Dict[str, Any]]
+            Files of the request.
+        magnets: Optional[str]
+            Magnets of the request.
+        links: Optional[str]
+            Links of the request.
+        timeout: int
+            Timeout of the request.
 
         Returns
         -------
         dict
-            Server Response.
+            Response of the request.
+
         """
         auth_header = {"Authorization": "Bearer " + self.apikey}
         session = requests.Session()
