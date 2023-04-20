@@ -2,10 +2,10 @@ import os
 import pytest 
 import sys
 from dotenv import load_dotenv
-sys.path.append("..")
+#sys.path.append("..")
 from alldebrid import AllDebrid, AllDebridError, endpoints, HOST
 
-load_dotenv(dotenv_path="../.env", verbose=True)
+load_dotenv(dotenv_path="../.env.sample", verbose=True)
 
 apikey = os.getenv("ALLDEBRID_API_KEY")
 
