@@ -3,7 +3,7 @@ import pytest
 import sys
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
-from .alldebrid import AllDebrid, AllDebridError, endpoints, HOST
+from alldebrid import AllDebrid, AllDebridError, endpoints, HOST
 
 load_dotenv(dotenv_path="../.env.sample", verbose=True)
 
