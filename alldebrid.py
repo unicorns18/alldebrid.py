@@ -160,7 +160,7 @@ class AllDebrid:
         """
         self.apikey = apikey
 
-    def ping(self) -> dict:
+    def ping(self) -> Dict[str, Any]:
         """
         Makes a request to the ping endpoint.
         
@@ -169,9 +169,12 @@ class AllDebrid:
         dict
             The response from the API.
         """
-        endpoint = endpoints.get("ping")
-        if endpoint is None:
-            raise ValueError("Endpoint not found")
+        try:
+            endpoint = endpoints.get("ping")
+        except KeyError as exc:
+            raise ValueError("Endpoint not found") from exc
+        # if endpoint is None:
+        #     raise ValueError("Endpoint not found")
 
         return self._request(method="GET", endpoint=endpoint)
     
@@ -221,10 +224,11 @@ class AllDebrid:
         if get_pin_response is None and (hash is None or pin is None):
             raise ValueError("Either get_pin_response or hash and pin must be provided")
 
+        useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36"
         params = {
             "check": hash,
             "pin": pin,
-            "agent": "python"
+            "agent": useragent
         }
 
         endpoint = endpoints.get("check pin")
@@ -263,7 +267,7 @@ class AllDebrid:
         
         return response
     
-    def download_link(self, links: Union[str, List[str]]) -> dict:
+    def download_link(self, links: Union[str, List[str]]) -> Dict[str, Any]:
         """
         Makes a request to the download link endpoint.
 
@@ -407,11 +411,16 @@ class AllDebrid:
         if not files:
             raise ValueError("No files to upload")
         
-        if not os.path.exists(files):
-            raise FileNotFoundError("File not found")
+        try:
+            with open(files, "rb") as file:
+                pass
+        except FileNotFoundError as exc:
+            raise ValueError("File not found") from exc
 
         # TODO: Support multiple files at once
-        file = {'files[0]': open(files, 'rb')}
+        #file = {'files[0]': open(files, 'rb')}
+        with open(files, 'rb') as file:
+            file = {'files[0]': file.read()}
 
         endpoint = endpoints.get("upload file")
         if endpoint is None:

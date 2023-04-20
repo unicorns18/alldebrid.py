@@ -130,7 +130,7 @@ class TestAllDebrid:
         Test that calling the upload_file method with invalid files raises a ValueError.
         """
         ad = AllDebrid(apikey=apikey)
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ValueError):
             ad.upload_file(files="invalid_file.txt")
 
     def test_upload_file_endpoint_with_no_file(self):
