@@ -44,105 +44,14 @@ Examples
 >>> ad.ping()
 {'status': 'success', 'data': {'ping': 'pong'}}
 """
+import os
 from typing import Any, Dict, List, Optional, Union
 import requests
 from apikey_validation import check_if_valid_key
+from errors import AllDebridError
+from endpoints import endpoints
 
 HOST = "http://api.alldebrid.com/v4/"
-
-apiErrors = {
-    'GENERIC': 'An error occurred',
-    '404': "Endpoint doesn't exist",
-
-    'AUTH_MISSING_AGENT': "You must send a meaningful agent parameter, see api docs",
-    'AUTH_BAD_AGENT': "Bad agent",
-    'AUTH_MISSING_APIKEY': 'The auth apikey was not sent',
-    'AUTH_BAD_APIKEY': 'The auth apikey is invalid',
-    'AUTH_BLOCKED': 'This apikey is geo-blocked or ip-blocked',
-    'AUTH_USER_BANNED': 'This account is banned',
-
-    'LINK_IS_MISSING': 'No link was sent',
-    'LINK_HOST_NOT_SUPPORTED': 'This host or link is not supported',
-    'LINK_DOWN': 'This link is not available on the file hoster website',
-    'LINK_PASS_PROTECTED': 'Link is password protected',
-    'LINK_HOST_UNAVAILABLE': 'Host under maintenance or not available',
-    'LINK_TOO_MANY_DOWNLOADS': 'Too many concurrent downloads for this host',
-    'LINK_HOST_FULL': 'All servers are full for this host, please retry later',
-    'LINK_HOST_LIMIT_REACHED': "You have reached the download limit for this host",
-    'LINK_ERROR': 'Could not unlock this link',
-
-    'REDIRECTOR_NOT_SUPPORTED': 'Redirector not supported',
-    'REDIRECTOR_ERROR': 'Could not extract links',
-
-    'STREAM_INVALID_GEN_ID': 'Invalid generation ID',
-    'STREAM_INVALID_STREAM_ID': 'Invalid stream ID',
-
-    'DELAYED_INVALID_ID': "This delayed link id is invalid",
-
-    'FREE_TRIAL_LIMIT_REACHED': 'You have reached the free trial limit (7 days // 25GB downloaded or host ineligible for free trial)', #pylint: disable=C0301
-    'MUST_BE_PREMIUM': "You must be premium to process this link",
-
-    'MAGNET_INVALID_ID': 'This magnet ID does not exists or is invalid',
-    'MAGNET_INVALID_URI': "Magnet is not valid",
-    'MAGNET_INVALID_FILE': "File is not a valid torrent",
-    'MAGNET_FILE_UPLOAD_FAILED': "File upload failed",
-    'MAGNET_NO_URI': "No magnet sent",
-    'MAGNET_PROCESSING': "Magnet is processing or completed",
-    'MAGNET_TOO_MANY_ACTIVE': "Already have maximum allowed active magnets (30)",
-    'MAGNET_MUST_BE_PREMIUM': "You must be premium to use this feature",
-    'MAGNET_NO_SERVER': "Server are not allowed to use this feature. Visit https://alldebrid.com/vpn if you're using a VPN.", #pylint: disable=C0301
-    'MAGNET_TOO_LARGE': "Magnet files are too large (max 1TB)",
-
-    'PIN_ALREADY_AUTHED': "You already have a valid auth apikey",
-    'PIN_EXPIRED': "The pin is expired",
-    'PIN_INVALID': "The pin is invalid",
-
-    'USER_LINK_MISSING': "No link provided",
-    'USER_LINK_INVALID': "Can't save those links",
-
-    'NO_SERVER': "Server are not allowed to use this feature. Visit https://alldebrid.com/vpn if you're using a VPN.", #pylint: disable=C0301
-
-    'MISSING_NOTIF_ENDPOINT': 'You must provide an endpoint to unsubscribe',
-
-    'VOUCHER_DURATION_INVALID': 'Invalid voucher duration (must be either 15, 30, 90, 180 or 365)',
-    'VOUCHER_NB_INVALID': 'Invalid voucher number, must be between 1 and 10',
-    'NO_MORE_VOUCHER': 'No voucher of this type available in your account',
-    'INSUFFICIENT_BALANCE': 'Your current reseller balance is not enough to generate the requested vouchers', #pylint: disable=C0301
-}
-endpoints = {
-    "ping": "ping",
-    "get pin": "pin/get",
-    "check pin": "pin/check",
-    "user": "user",
-    "download link": "link/unlock",
-    "streaming links": "link/streaming",
-    "delayed links": "link/delayed",
-    "upload magnet": "magnet/upload",
-    "upload file": "magnet/upload/file",
-    "status": "magnet/status",
-    "delete": "magnet/delete",
-    "restart": "magnet/restart",
-    "instant": "magnet/instant",
-    "saved links": "user/links",
-    "save a link": "user/links/save",
-    "delete saved link": "user/links/delete",
-    "recent links": "user/history",
-    "purge history": "user/history/delete"
-}
-
-class AllDebridError(ValueError):
-    """
-    Alldebrid error
-    """
-    code: str
-    message: str
-
-    def __init__(self, code: str, message: str):
-        self.code = code
-        self.message = message
-
-    def __str__(self):
-        return f'{self.code} - {self.message}'
 
 class AllDebrid:
     """
@@ -155,11 +64,12 @@ class AllDebrid:
     """
     # TODO: In all the methods, add more detailed error messages to the raise ValueError statements, so that the user can understand why the error occurred. For example, instead of raising a ValueError("Endpoint not found for Delayed links"), raise a ValueError("Endpoint not found for Delayed links. Please check if the endpoint is correct.").
 
-    def __init__(self, apikey: str) -> None:
+    def __init__(self, apikey: str, proxy: Optional[str] = None) -> None:
         """
         __init__ method for the AllDebrid class.
         """
         self.apikey = apikey
+        self.proxy = proxy
 
     def ping(self) -> Dict[str, Any]:
         """
@@ -178,17 +88,15 @@ class AllDebrid:
             If the API returns an error.
         """
         # TODO: Refactor to handle cases where endpoints.get("ping") returns None.
-        try:
-            endpoint = endpoints.get("ping")
-        except KeyError as exc:
-            raise ValueError("Endpoint not found") from exc
-        # if endpoint is None:
-        #     raise ValueError("Endpoint not found")
-
+        endpoint = endpoints.get("ping")
+        if not endpoint:
+            raise ValueError("Endpoint not found for ping")
+        
         response = self._request(method="GET", endpoint=endpoint)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
 
         return response
     
@@ -209,13 +117,14 @@ class AllDebrid:
             If the API returns an error.
         """
         endpoint = endpoints.get("get pin")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found")
 
         response = self._request(method="GET", endpoint=endpoint)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
     
@@ -249,21 +158,23 @@ class AllDebrid:
         if get_pin_response is None and (hash_value is None or pin is None):
             raise ValueError("Either get_pin_response or hash and pin must be provided")
 
-        useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36"
-        params = {
-            "check": hash_value,
-            "pin": pin,
-            "agent": useragent
-        }
+        params = {}
+        if get_pin_response is not None:
+            params["check"] = get_pin_response["check"]
+            params["pin"] = get_pin_response["pin"]
+        else:
+            params["hash"] = hash_value
+            params["pin"] = pin
 
         endpoint = endpoints.get("check pin")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for Check pin")
         
         response = self._request(method="GET", endpoint=endpoint, params=params)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
     
@@ -283,19 +194,17 @@ class AllDebrid:
         AllDebridError
             If the API returns an error.
         """
-        if self.apikey is None:
-            raise ValueError("API key is required for this endpoint")
-        
         endpoint = endpoints.get("user")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for User")
 
         response = self._request(method="GET", endpoint=endpoint)
 
         if response.get("status") == "error":
-            if response["error"]["code"] == "AUTH_MISSING_APIKEY":
+            error = response["error"]
+            if error["code"] == "AUTH_MISSING_APIKEY":
                 raise ValueError("API key is required for this endpoint")
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            raise AllDebridError(error["code"], error["message"])
         
         return response
     
@@ -322,19 +231,21 @@ class AllDebrid:
         """
         # TODO: Support passwords for links, if it has one.
         endpoint = endpoints.get("download link")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for download link")
 
         if isinstance(links, str):
             links = [links]
-        params = {
+
+        data = {
             "link": links,
             "agent": "python"
         }
         
-        response = self._request(method="GET", endpoint=endpoint, params=params)
+        response = self._request(method="GET", endpoint=endpoint, params=data)
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
@@ -360,19 +271,20 @@ class AllDebrid:
             If the API returns an error.
         """
         # TODO: Add a stream id (from link/unlock)
-        params = {
+        data = {
             "link": link,
             "agent": "python"
         }
 
         endpoint = endpoints.get("streaming links")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for Streaming links")
 
-        response = self._request(method="GET", endpoint=endpoint, params=params)
+        response = self._request(method="GET", endpoint=endpoint, params=data)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
 
         return response
     
@@ -402,18 +314,20 @@ class AllDebrid:
         AllDebridError
             If the API returns an error.
         """
-        if download_id is None:
+        if not download_id:
             raise ValueError("ID not found for delayed links")
         
         endpoint = endpoints.get("delayed links")
-
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for Delayed links")
         
-        response = self._request(method="GET", endpoint=endpoint, params={"id": download_id})
+        data = { "id": download_id }
+
+        response = self._request(method="GET", endpoint=endpoint, params=data)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
@@ -438,25 +352,28 @@ class AllDebrid:
         AllDebridError
             If the API returns an error.
         """
-        params = {
-            "magnets": magnets,
-            "agent": "python"
-        }
-
+        if not magnets:
+            raise ValueError("Magnets not found for upload magnets")
+        
         endpoint = endpoints.get("upload magnet")
         if endpoint is None:
             raise ValueError("Endpoint not found for Upload magnets")
+
+        data = {
+            "magnets": magnets,
+        }
         
-        response = self._request(method="POST", endpoint=endpoint, params=params)
+        response = self._request(method="POST", endpoint=endpoint, params=data)
 
         if response.get("status") == "error":
-            if response["error"]["code"] == "NO_SERVER":
+            error = response["error"]
+            if error["code"] == "NO_SERVER":
                 raise ValueError("API key is required for this endpoint")
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
-    def upload_file(self, files: str) -> dict:
+    def upload_file(self, file_path: str) -> dict:
         """
         Makes a request to the upload file endpoint.
 
@@ -477,38 +394,35 @@ class AllDebrid:
         AllDebridError
             If the API returns an error.
         """
-        if not files:
-            raise ValueError("No files to upload")
-        
-        try:
-            with open(files, "rb") as file:
-                pass
-        except FileNotFoundError as exc:
-            raise ValueError("File not found") from exc
+        if not isinstance(file_path, str) and not file_path:
+            raise ValueError(f"File path cannot be None ({file_path}, {type(file_path)})")
 
-        # TODO: Support multiple files at once
-        #file = {'files[0]': open(files, 'rb')}
-        with open(files, 'rb') as file:
-            file = {'files[0]': file.read()}
+        if not os.path.isfile(file_path):
+            raise ValueError("No files to upload")
 
         endpoint = endpoints.get("upload file")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for Upload file")
+
+        # TODO: Support multiple files at once
+        with open(file_path, 'rb') as file:
+            file = {'files[0]': file.read()}
 
         response = self._request(method="POST", endpoint=endpoint, files=file)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
 
         return response
 
-    def get_magnet_status(self, magnet_id: Optional[int] = None) -> dict:
+    def get_magnet_status(self, magnet_id: int) -> dict:
         """
         Makes a request to the magnet status endpoint.
 
         Parameters
         ----------
-        magnet_id : Optional[int]
+        magnet_id : int
             The magnet id to check.
         
         Returns
@@ -523,27 +437,28 @@ class AllDebrid:
         ValueError
             If the magnet id is not found.
         """
-        if magnet_id is None:
+        if not magnet_id:
             raise ValueError("Magnet ID not found for magnet status")
         
         endpoint = endpoints.get("status")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for Magnet status")
 
         response = self._request(method="GET", endpoint=endpoint, params={"id": magnet_id})
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
-    def delete_magnet(self, magnet_id: int) -> dict:
+    def delete_magnet(self, magnet_id: Optional[int] = None) -> dict:
         """
         Makes a request to the delete magnet endpoint.
 
         Parameters
         ----------
-        magnet_id : int
+        magnet_id : int, optional
             The magnet id to delete.
 
         Returns
@@ -558,17 +473,18 @@ class AllDebrid:
         ValueError
             If the magnet id is not found.
         """
-        if magnet_id is None:
+        if not magnet_id:
             raise ValueError("Magnet ID not found for delete magnet")
         
         endpoint = endpoints.get("delete")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for delete magnet")
 
         response = self._request(method="GET", endpoint=endpoint, params={"id": magnet_id})
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
@@ -597,27 +513,34 @@ class AllDebrid:
         """
         if magnet_id is None and ids is None:
             raise ValueError("Magnet ID not found for restart magnet")
+        if magnet_id is not None and ids is not None:
+            raise ValueError("Only one of magnet_id or ids can be provided for restart magnet")
         
         endpoint = endpoints.get("restart")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for restart magnet")
+        
+        params = {}
         if magnet_id is not None:
-            response = self._request(method="GET", endpoint=endpoint, params={"id": magnet_id})
+            params["id"] = magnet_id
         else:
-            response = self._request(method="GET", endpoint=endpoint, params={"ids": ids})
-            
+            params["ids"] = ids
+
+        response = self._request(method="GET", endpoint=endpoint, params=params)
+                    
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
-    def check_magnet_instant(self, magnets: Optional[Union[str, List[str]]] = None) -> dict:
+    def check_magnet_instant(self, magnets: Union[str, List[str]] = None) -> dict:
         """
         Check instant availability of magnets.
 
         Parameters
         ----------
-        magnets: Union[str, List[str]], optional
+        magnets: Union[str, List[str]]
             Magnets to check.
 
         Returns
@@ -633,10 +556,10 @@ class AllDebrid:
             If endpoint is not found.
         """
         endpoint = endpoints.get("instant")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for check magnet instant")
 
-        if magnets is None:
+        if not magnets:
             raise ValueError("No magnets to check")
         
         if isinstance(magnets, str):
@@ -645,7 +568,8 @@ class AllDebrid:
         response = self._request(method="POST", endpoint=endpoint, magnets=magnets)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
     
@@ -666,23 +590,24 @@ class AllDebrid:
             If endpoint is not found.
         """
         endpoint = endpoints.get("saved links")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for saved links")
         
         response = self._request(method="GET", endpoint=endpoint)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
-    def save_new_link(self, link_id: Optional[Union[str, List[str]]]) -> dict:
+    def save_new_link(self, link_id: Union[str, List[str]]) -> dict:
         """
         Save a new link.
 
         Parameters
         ----------
-        link_id: Optional[Union[str, List[str]]]
+        link_id: Union[str, List[str]]
             Link id to save.
 
         Returns
@@ -697,27 +622,28 @@ class AllDebrid:
         ValueError
             If endpoint is not found.
         """
-        if link_id is None:
+        if not link_id:
             raise ValueError("No link id to save")
 
         endpoint = endpoints.get("save a link")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for save new link")
         
         response = self._request(method="POST", endpoint=endpoint, links=link_id)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
-    def delete_saved_link(self, links: Optional[List[str]] = None) -> dict:
+    def delete_saved_link(self, links: List[str] = None) -> dict:
         """
         Delete saved links.
 
         Parameters
         ----------
-        links: Optional[List[str]]
+        links: List[str]
             List of links.
 
         Returns
@@ -733,13 +659,14 @@ class AllDebrid:
             If endpoint is not found.
         """
         endpoint = endpoints.get("delete saved link")
-        if endpoint is None:
+        if not endpoint:
             raise ValueError("Endpoint not found for delete saved link")
         
         response = self._request(method="POST", endpoint=endpoint, links=links)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
@@ -753,13 +680,14 @@ class AllDebrid:
             Returns a dict containing all the recent links.
         """
         endpoint = endpoints.get("recent links")
-        if endpoint is None:
-            raise ValueError("Endpoint not found for recent links")
+        if not endpoint:
+            raise ValueError("Endpoint not found for recent links.")
         
         response = self._request(method="GET", endpoint=endpoint)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
@@ -780,13 +708,14 @@ class AllDebrid:
             If the endpoint is not found.
         """
         endpoint = endpoints.get("purge history")
-        if endpoint is None:
-            raise ValueError("Endpoint not found for purge recent links")
+        if not endpoint:
+            raise ValueError("Endpoint URL not found for purging recent links.")
         
         response = self._request(method="GET", endpoint=endpoint)
 
         if response.get("status") == "error":
-            raise AllDebridError(response["error"]["code"], response["error"]["message"])
+            error = response["error"]
+            raise AllDebridError(error["code"], error["message"])
         
         return response
 
@@ -838,15 +767,14 @@ class AllDebrid:
         auth_header = {"Authorization": "Bearer " + self.apikey}
         session = requests.Session()
 
+        if self.proxy is not None:
+            session.proxies = {"http": self.proxy, "https": self.proxy}
+
         params = {} if params is None else params
         files = {} if files is None else files
         magnets = [] if magnets is None else magnets
         links = [] if links is None else links
 
-        # if endpoint is None:
-        #     raise ValueError(f"Endpoint not found for {endpoint}")
-        # if endpoint not in endpoints.values():
-        #     raise ValueError(f"Invalid endpoint: {endpoint}")
         if endpoint is None or endpoint not in endpoints.values():
             raise ValueError(f"Invalid endpoint: {endpoint}")
 
@@ -889,35 +817,3 @@ class AllDebrid:
         if response.status_code == 200:
             return response.json()
         raise AllDebridError(response.status_code, response.text)
-        # Keeping for future reference in-case.
-        # try:
-        #     if method == "GET":
-        #         response = session.get(
-        #             url,
-        #             headers=auth_header,
-        #             params=params,
-        #             files=files,
-        #             timeout=timeout,
-        #             data=magnets
-        #         )
-        #     elif method == "POST":
-        #         if magnets is not None and len(magnets) > 0:
-        #             if isinstance(magnets, str):
-        #                 magnets = [magnets]
-        #             magnets = {'magnets[]': magnets}
-        #         else:
-        #             magnets = None
-        #         if links is not None and len(links) > 0:
-        #             if isinstance(links, str):
-        #                 links = [links]
-        #             links = {'links[]': links}
-        #         else:
-        #             links = None
-        #             response = session.post(
-        #                 url,
-        #                 headers=auth_header,
-        #                 params=params,
-        #                 files=files,
-        #                 timeout=timeout,
-        #                 data=links
-        #             )

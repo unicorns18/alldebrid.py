@@ -60,7 +60,7 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(files="")
+            alldebrid.upload_file(file_path="")
 
     def test_invalid_endpoint_name(self):
         """
@@ -120,9 +120,9 @@ class TestAllDebrid:
         """
         Arrr! Shiver me timbers, mateys! This test checks whether the upload_file endpoint raises a proper ValueError when called without any files.
         """
-        alldebrid = AllDebrid(apikey="valid_api_key")
+        alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(files=None)
+            alldebrid.upload_file(file_path=None)
 
     def test_upload_file_endpoint_with_files(self):
         """
@@ -145,7 +145,7 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(files="invalid_file.txt")
+            alldebrid.upload_file(file_path="invalid_file.txt")
 
     def test_upload_file_endpoint_with_no_file(self):
         """
@@ -153,7 +153,7 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(files="")
+            alldebrid.upload_file(file_path="")
 
     # TODO: Write the test for the upload_file method with multiple files.
     def test_upload_file_endpoint_with_multiple_files(self):
@@ -166,10 +166,8 @@ class TestAllDebrid:
         """
         Ahoy, matey! Avast ye, this test be testing the magnet_upload method! We'll be checkin' that the method gives us a jolly roger of a response from the API when we pass it a valid magnet link. Let's set sail and hoist the colors!
         """
+        # Returns a NO_SERVER error on Github Actions.
         pytest.skip("Skipping test_magnet_upload_endpoint_with_valid_magnet_link")
-        alldebrid = AllDebrid(apikey=apikey)
-        response = alldebrid.upload_magnets(magnets="magnet:?xt=urn:btih:C3DA9A3DC2CE14D0D4FC0E87D1B2023502F8DCD6&dn=The+Shawshank+Redemption+%281994%29+%5B2160p%5D+%5BYTS.MX%5D&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.tracker.cl%3A1337%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2970%2Fannounce&tr=udp%3A%2F%2Fp4p.arenabg.com%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fipv4.tracker.harry.lu%3A80%2Fannounce&tr=https%3A%2F%2Fopentracker.i2p.rocks%3A443%2Fannounce")
-        assert response.get("status") == "success"
 
     def test_get_magnet_info(self):
         """
@@ -183,7 +181,7 @@ class TestAllDebrid:
 
     def test_get_pin(self):
         """
-        Test that the get_pin method returns a valid response from the API.
+        Arrr! Hoist the Jolly Roger! Test that the get_pin method returns a valid response from the API, me hearties!
         """
         alldebrid = AllDebrid(apikey=apikey)
         response = alldebrid.get_pin()
@@ -191,7 +189,7 @@ class TestAllDebrid:
 
     def test_get_pin_without_api_key(self):
         """
-        Test that calling the get_pin method without an API key raises a ValueError.
+        Shiver me timbers! This be the docstring fer me function to test if callin' the get_pin method without an API key raises a Value Error.
         """
         alldebrid = AllDebrid(apikey=None)
         with pytest.raises(ValueError):
@@ -199,7 +197,7 @@ class TestAllDebrid:
 
     def test_get_pin_with_invalid_api_key(self):
         """
-        Test that calling the get_pin method with an invalid API key raises a ValueError.
+        Blimey! Here be the docstring fer me function to test if callin' the get_pin method with an invalid API key raises a Value Error.
         """
         alldebrid = AllDebrid(apikey="invalid_api_key")
         with pytest.raises(ValueError):
