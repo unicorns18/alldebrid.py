@@ -180,3 +180,27 @@ class TestAllDebrid:
         alldebrid = AllDebrid(apikey=apikey)
         response = alldebrid.get_magnet_status(magnet_id=186284422)
         assert response.get("status") == "success"
+
+    def test_get_pin(self):
+        """
+        Test that the get_pin method returns a valid response from the API.
+        """
+        alldebrid = AllDebrid(apikey=apikey)
+        response = alldebrid.get_pin()
+        assert response.get("status") == "success"
+
+    def test_get_pin_without_api_key(self):
+        """
+        Test that calling the get_pin method without an API key raises a ValueError.
+        """
+        alldebrid = AllDebrid(apikey=None)
+        with pytest.raises(ValueError):
+            alldebrid.get_pin()
+
+    def test_get_pin_with_invalid_api_key(self):
+        """
+        Test that calling the get_pin method with an invalid API key raises a ValueError.
+        """
+        alldebrid = AllDebrid(apikey="invalid_api_key")
+        with pytest.raises(ValueError):
+            alldebrid.get_pin()

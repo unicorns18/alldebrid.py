@@ -46,6 +46,7 @@ Examples
 """
 from typing import Any, Dict, List, Optional, Union
 import requests
+from apikey_validation import check_if_valid_key
 
 HOST = "http://api.alldebrid.com/v4/"
 
@@ -826,60 +827,97 @@ class AllDebrid:
         -------
         dict
             Response of the request.
-
         """
+        apikey_validation_check = check_if_valid_key(self.apikey)
+        if not apikey_validation_check:
+            raise ValueError("API Key not valid!")
+
+        if self.apikey is None or self.apikey == "":
+            raise ValueError("API Key not found")
+
         auth_header = {"Authorization": "Bearer " + self.apikey}
         session = requests.Session()
 
-        if params is None:
-            params = {}
-        if files is None:
-            files = {}
-        if magnets is None:
-            magnets = []
-        if links is None:
-            links = []
+        params = {} if params is None else params
+        files = {} if files is None else files
+        magnets = [] if magnets is None else magnets
+        links = [] if links is None else links
 
-        if endpoint is None:
-            raise ValueError(f"Endpoint not found for {endpoint}")
-        if endpoint not in endpoints.values():
+        # if endpoint is None:
+        #     raise ValueError(f"Endpoint not found for {endpoint}")
+        # if endpoint not in endpoints.values():
+        #     raise ValueError(f"Invalid endpoint: {endpoint}")
+        if endpoint is None or endpoint not in endpoints.values():
             raise ValueError(f"Invalid endpoint: {endpoint}")
 
         url = HOST + endpoint + "?agent=" + agent
 
-        try:
-            if method == "GET":
-                response = session.get(
-                    url,
-                    headers=auth_header,
-                    params=params,
-                    files=files,
-                    timeout=timeout,
-                    data=magnets
-                )
-            elif method == "POST":
-                if magnets is not None and len(magnets) > 0:
-                    if isinstance(magnets, str):
-                        magnets = [magnets]
-                    magnets = {'magnets[]': magnets}
-                else:
-                    magnets = None
-                if links is not None and len(links) > 0:
-                    if isinstance(links, str):
-                        links = [links]
-                    links = {'links[]': links}
-                else:
-                    links = None
-                    response = session.post(
-                        url,
-                        headers=auth_header,
-                        params=params,
-                        files=files,
-                        timeout=timeout,
-                        data=links
-                    )
-        
-        except requests.exceptions.RequestException as exception:
-            raise ValueError(apiErrors['GENERIC'] + ': ' + str(exception)) from exception
-        
-        return response.json()
+        common_params = {
+            'headers': auth_header,
+            'params': params,
+            'files': files,
+            'timeout': timeout
+        }
+
+        if method == "GET":
+            response = session.request(
+                method='GET',
+                url=url,
+                data=magnets,
+                **common_params
+            )
+        elif method == "POST":
+            if magnets is not None and len(magnets) > 0:
+                if isinstance(magnets, str):
+                    magnets = [magnets]
+                magnets = {'magnets[]': magnets}
+            else:
+                magnets = None
+            if links is not None and len(links) > 0:
+                if isinstance(links, str):
+                    links = [links]
+                links = {'links[]': links}
+            else:
+                links = None
+            response = session.request(
+                method='POST',
+                url=url,
+                data=magnets,
+                **common_params
+            )
+
+        if response.status_code == 200:
+            return response.json()
+        raise AllDebridError(response.status_code, response.text)
+        # Keeping for future reference in-case.
+        # try:
+        #     if method == "GET":
+        #         response = session.get(
+        #             url,
+        #             headers=auth_header,
+        #             params=params,
+        #             files=files,
+        #             timeout=timeout,
+        #             data=magnets
+        #         )
+        #     elif method == "POST":
+        #         if magnets is not None and len(magnets) > 0:
+        #             if isinstance(magnets, str):
+        #                 magnets = [magnets]
+        #             magnets = {'magnets[]': magnets}
+        #         else:
+        #             magnets = None
+        #         if links is not None and len(links) > 0:
+        #             if isinstance(links, str):
+        #                 links = [links]
+        #             links = {'links[]': links}
+        #         else:
+        #             links = None
+        #             response = session.post(
+        #                 url,
+        #                 headers=auth_header,
+        #                 params=params,
+        #                 files=files,
+        #                 timeout=timeout,
+        #                 data=links
+        #             )
