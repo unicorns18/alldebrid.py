@@ -34,7 +34,7 @@ Functions
 
 Exceptions
 ----------
-AllDebridError
+APIError
     Raised when an error occurs with the API.
 
 Examples
@@ -48,7 +48,7 @@ import os
 from typing import Any, Dict, List, Optional, Union
 import requests
 from apikey_validation import check_if_valid_key
-from errors import AllDebridError
+from errors import APIError
 from endpoints import endpoints
 
 HOST = "http://api.alldebrid.com/v4/"
@@ -84,7 +84,7 @@ class AllDebrid:
         ------
         ValueError
             If the endpoint is not found.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         # TODO: Refactor to handle cases where endpoints.get("ping") returns None.
@@ -96,7 +96,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
 
         return response
     
@@ -113,7 +113,7 @@ class AllDebrid:
         ------
         ValueError
             If the endpoint is not found.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         endpoint = endpoints.get("get pin")
@@ -124,7 +124,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
     
@@ -150,7 +150,7 @@ class AllDebrid:
         ------
         ValueError
             If neither get_pin_response nor hash_value and pin are provided.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         #TODO: Add error handling for cases where the API request fails.
@@ -174,7 +174,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
     
@@ -191,7 +191,7 @@ class AllDebrid:
         ------
         ValueError
             If the API key is not provided.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         endpoint = endpoints.get("user")
@@ -204,7 +204,7 @@ class AllDebrid:
             error = response["error"]
             if error["code"] == "AUTH_MISSING_APIKEY":
                 raise ValueError("API key is required for this endpoint")
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
     
@@ -226,7 +226,7 @@ class AllDebrid:
         ------
         ValueError
             If the endpoint is not found.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         # TODO: Support passwords for links, if it has one.
@@ -245,7 +245,7 @@ class AllDebrid:
         response = self._request(method="GET", endpoint=endpoint, params=data)
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -267,7 +267,7 @@ class AllDebrid:
         ------
         ValueError
             If the endpoint is not found.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         # TODO: Add a stream id (from link/unlock)
@@ -284,7 +284,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
 
         return response
     
@@ -311,7 +311,7 @@ class AllDebrid:
         ------
         ValueError
             If the id is not found.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         if not download_id:
@@ -327,7 +327,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -349,7 +349,7 @@ class AllDebrid:
         ------
         ValueError
             If the magnets are not found.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         if not magnets:
@@ -369,7 +369,7 @@ class AllDebrid:
             error = response["error"]
             if error["code"] == "NO_SERVER":
                 raise ValueError("API key is required for this endpoint")
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -391,7 +391,7 @@ class AllDebrid:
         ------
         ValueError
             If the file is not found.
-        AllDebridError
+        APIError
             If the API returns an error.
         """
         if not isinstance(file_path, str) and not file_path:
@@ -412,7 +412,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
 
         return response
 
@@ -432,7 +432,7 @@ class AllDebrid:
         
         Raises
         ------
-        AllDebridError
+        APIError
             If the API returns an error.
         ValueError
             If the magnet id is not found.
@@ -448,7 +448,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -468,7 +468,7 @@ class AllDebrid:
 
         Raises
         ------
-        AllDebridError
+        APIError
             If the API returns an error.
         ValueError
             If the magnet id is not found.
@@ -484,7 +484,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -506,7 +506,7 @@ class AllDebrid:
 
         Raises
         ------
-        AllDebridError
+        APIError
             If the API returns an error.
         ValueError
             If no magnet id or ids are provided.
@@ -530,7 +530,7 @@ class AllDebrid:
                     
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -550,7 +550,7 @@ class AllDebrid:
 
         Raises
         ------
-        AllDebridError
+        APIError
             If the AllDebrid API returns an error.
         ValueError
             If endpoint is not found.
@@ -569,7 +569,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
     
@@ -584,7 +584,7 @@ class AllDebrid:
 
         Raises
         ------
-        AllDebridError
+        APIError
             If request is unsuccessful.
         ValueError
             If endpoint is not found.
@@ -597,7 +597,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -617,7 +617,7 @@ class AllDebrid:
 
         Raises
         ------
-        AllDebridError
+        APIError
             If request is unsuccessful.
         ValueError
             If endpoint is not found.
@@ -633,7 +633,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -653,7 +653,7 @@ class AllDebrid:
 
         Raises
         ------
-        AllDebridError
+        APIError
             If request is unsuccessful.
         ValueError
             If endpoint is not found.
@@ -666,7 +666,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -678,6 +678,11 @@ class AllDebrid:
         -------
         dict
             Returns a dict containing all the recent links.
+
+        Raises
+        ------
+        APIError
+            If any error occurred while getting recent links.
         """
         endpoint = endpoints.get("recent links")
         if not endpoint:
@@ -687,7 +692,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -702,7 +707,7 @@ class AllDebrid:
 
         Raises
         ------
-        AllDebridError
+        APIError
             If any error occurred while purging recent links.
         ValueError
             If the endpoint is not found.
@@ -715,7 +720,7 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
-            raise AllDebridError(error["code"], error["message"])
+            raise APIError(error["code"], error["message"])
         
         return response
 
@@ -816,4 +821,4 @@ class AllDebrid:
 
         if response.status_code == 200:
             return response.json()
-        raise AllDebridError(response.status_code, response.text)
+        raise APIError(response.status_code, response.text)

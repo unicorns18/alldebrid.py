@@ -1,6 +1,6 @@
-class AllDebridError(Exception):
+class APIError(Exception):
     """
-    Alldebrid error
+    API error.
 
     Attributes:
         _code (str): The error code.
@@ -40,6 +40,35 @@ class AllDebridError(Exception):
             str: The error message.
         """
         return self._message
+    
+class EndpointNotFoundError(Exception):
+    """
+    Endpoint not found error.
+
+    Attributes:
+        _endpoint (str): The endpoint that was not found.
+    """
+    endpoint: str
+
+    def __init__(self, endpoint: str) -> None:
+        """
+        Initializes a new instance of the EndpointNotFoundError class.
+
+        Args:
+            endpoint (str): The endpoint that was not found.
+        """
+        super().__init__(f"Endpoint not found for {endpoint}")
+        self._endpoint = endpoint
+
+    @property
+    def endpoint(self) -> str:
+        """
+        The endpoint that was not found.
+
+        Returns:
+            str: The endpoint that was not found.
+        """
+        return self._endpoint
     
 apiErrors = {
     'GENERIC': 'An error occurred',
