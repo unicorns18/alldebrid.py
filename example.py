@@ -15,7 +15,10 @@ ping = alldebrid.ping()
 pprint('Ping:', ping)
 # Ping: {'status': 'success', 'data': {'ping': 'pong'}}
 
-link = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-list_of_links = ["https://www.youtube.com/watch?v=dQw4w9WgXcQ", "https://www.youtube.com/watch?v=2ZIpFytCSVc"]
+LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+list_of_links = [
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "https://www.youtube.com/watch?v=2ZIpFytCSVc"
+]
 
 pprint(alldebrid.get_direct_stream_link(list_of_links))

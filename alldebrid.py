@@ -45,11 +45,9 @@ Examples
 {'status': 'success', 'data': {'ping': 'pong'}}
 """
 import os
-import re
 import time
 from typing import Any, Dict, List, Optional, Union
 import requests
-from apikey_validation import check_if_valid_key
 from errors import APIError
 from endpoints import endpoints
 from utils import handle_exceptions
@@ -90,7 +88,6 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        # TODO: Refactor to handle cases where endpoints.get("ping") returns None.
         endpoint = endpoints.get("ping")
         if not endpoint:
             raise ValueError("Endpoint not found for ping")
@@ -156,8 +153,6 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        #TODO: Add error handling for cases where the API request fails.
-
         if get_pin_response is None and (hash_value is None or pin is None):
             raise ValueError("Either get_pin_response or hash and pin must be provided")
 
@@ -252,7 +247,7 @@ class AllDebrid:
         
         return response
 
-    def streaming_links(self, link: str, id: str, stream: str) -> dict:
+    def streaming_links(self, link: str, stream_id: str, stream: str) -> dict:
         """
         Makes a request to the streaming links endpoint.
 
@@ -260,7 +255,7 @@ class AllDebrid:
         ----------
         link : str
             The link to unlock.
-        id : str
+        stream_id : str
             The link ID you received from the /link/unlock call.
         stream : str
             The stream ID you chose from the stream qualities list returned by /link/unlock.
@@ -277,11 +272,10 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        # TODO: Add a stream id (from link/unlock)
         data = {
             "link": link,
             "agent": "python",
-            "id": id,
+            "id": stream_id,
             "stream": stream
         }
 
@@ -757,7 +751,6 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        # TODO: Support multiple links in a list
         if isinstance(link, str):
             links = [link]
         elif isinstance(link, list):
