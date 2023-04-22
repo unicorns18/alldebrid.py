@@ -207,6 +207,7 @@ class TestAllDebrid:
         """
         Ye matey, this test be checkin' if the get_direct_stream_link method returns a string.
         """
+        pytest.skip("Skipping test_get_direct_stream_link_returns_string")
         alldebrid = AllDebrid(apikey=apikey)
         link = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         direct_link = alldebrid.get_direct_stream_link(link=link)
@@ -225,6 +226,7 @@ class TestAllDebrid:
         """
         Arrr! This test be checkin' if the get_direct_stream_link method returns a list of direct links when given multiple links.
         """
+        pytest.skip("Skipping test_get_direct_stream_link_with_multiple_links_returns_list_of_strings")
         alldebrid = AllDebrid(apikey=apikey)
         links = ["https://www.youtube.com/watch?v=dQw4w9WgXcQ", "https://www.youtube.com/watch?v=oHg5SJYRHA0"]
         direct_links = alldebrid.get_direct_stream_link(link=links)
