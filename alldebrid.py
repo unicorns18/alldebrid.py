@@ -45,11 +45,13 @@ Examples
 {'status': 'success', 'data': {'ping': 'pong'}}
 """
 import os
+import time
 from typing import Any, Dict, List, Optional, Union
 import requests
 from apikey_validation import check_if_valid_key
 from errors import APIError
 from endpoints import endpoints
+from utils import handle_exceptions
 
 HOST = "http://api.alldebrid.com/v4/"
 
@@ -249,14 +251,18 @@ class AllDebrid:
         
         return response
 
-    def streaming_links(self, link: List[str]) -> dict:
+    def streaming_links(self, link: str, id: str, stream: str) -> dict:
         """
         Makes a request to the streaming links endpoint.
 
         Parameters
         ----------
-        link : List[str]
+        link : str
             The link to unlock.
+        id : str
+            The link ID you received from the /link/unlock call.
+        stream : str
+            The stream ID you chose from the stream qualities list returned by /link/unlock.
 
         Returns
         -------
@@ -273,7 +279,9 @@ class AllDebrid:
         # TODO: Add a stream id (from link/unlock)
         data = {
             "link": link,
-            "agent": "python"
+            "agent": "python",
+            "id": id,
+            "stream": stream
         }
 
         endpoint = endpoints.get("streaming links")
@@ -725,6 +733,54 @@ class AllDebrid:
             raise APIError(error["code"], error["message"])
         
         return response
+    
+    @handle_exceptions(exceptions=(ValueError, APIError))
+    def get_direct_stream_link(self, link: str) -> str:
+        """
+        Wrapper for streaming links.
+
+        Parameters
+        ----------
+        link : str
+            The link to the video to be streamed.
+
+        Returns
+        -------
+        str
+            The direct link to stream the video.
+
+        Raises
+        ------
+        ValueError
+            If the endpoint is not found.
+        APIError
+            If the API returns an error.
+        """
+        # TODO: Support multiple links in a list
+        if not isinstance(link, str) or not link or isinstance(link, list):
+            raise ValueError("Link must be a string.")
+
+        unlock_response = self.download_link(link)
+        data_id = unlock_response["data"]["id"]
+        stream_id = unlock_response["data"]["streams"][0]["id"]
+        
+        stream_response = self.streaming_links(link, data_id, stream_id)
+        
+        while True:
+            delayed_link_response = self.delayed_links(
+                download_id=stream_response["data"]["delayed"]
+            )
+            
+            status = delayed_link_response["data"]["status"]
+            if status == 1:
+                break
+            elif status == 2:
+                delayed_link = delayed_link_response["data"]["link"]
+                return delayed_link
+            else:
+                time.sleep(2)
+                continue
+        return None
 
     def _request(
             self,
