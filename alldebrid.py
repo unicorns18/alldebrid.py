@@ -45,6 +45,7 @@ Examples
 {'status': 'success', 'data': {'ping': 'pong'}}
 """
 import os
+import re
 import time
 from typing import Any, Dict, List, Optional, Union
 import requests
@@ -735,18 +736,18 @@ class AllDebrid:
         return response
     
     @handle_exceptions(exceptions=(ValueError, APIError))
-    def get_direct_stream_link(self, link: str) -> str:
+    def get_direct_stream_link(self, link: Union[str, List[str]]) -> Union[str, None]:
         """
         Wrapper for streaming links.
 
         Parameters
         ----------
-        link : str
+        link : Union[str, List[str]]
             The link to the video to be streamed.
 
         Returns
         -------
-        str
+        Union[str, None]
             The direct link to stream the video.
 
         Raises
@@ -757,30 +758,44 @@ class AllDebrid:
             If the API returns an error.
         """
         # TODO: Support multiple links in a list
-        if not isinstance(link, str) or not link or isinstance(link, list):
-            raise ValueError("Link must be a string.")
+        if isinstance(link, str):
+            links = [link]
+        elif isinstance(link, list):
+            links = link
+        else:
+            raise ValueError("Link must be a string or list of strings.")
+        
+        direct_links = []
+        for link in links:
+            unlock_response = self.download_link(link)
+            data_id = unlock_response["data"]["id"]
+            stream_id = unlock_response["data"]["streams"][0]["id"]
 
-        unlock_response = self.download_link(link)
-        data_id = unlock_response["data"]["id"]
-        stream_id = unlock_response["data"]["streams"][0]["id"]
+            stream_response = self.streaming_links(link, data_id, stream_id)
+
+            while True:
+                delayed_link_response = self.delayed_links(
+                    download_id=stream_response["data"]["delayed"]
+                )
+                
+                status = delayed_link_response["data"]["status"]
+                if status == 1:
+                    break
+                elif status == 2:
+                    delayed_link = delayed_link_response["data"]["link"]
+                    direct_links.append(delayed_link)
+                    break
+                else:
+                    time.sleep(2)
+                    continue
         
-        stream_response = self.streaming_links(link, data_id, stream_id)
+        if not direct_links:
+            return None
         
-        while True:
-            delayed_link_response = self.delayed_links(
-                download_id=stream_response["data"]["delayed"]
-            )
-            
-            status = delayed_link_response["data"]["status"]
-            if status == 1:
-                break
-            elif status == 2:
-                delayed_link = delayed_link_response["data"]["link"]
-                return delayed_link
-            else:
-                time.sleep(2)
-                continue
-        return None
+        if len(direct_links) == 1:
+            return direct_links[0]
+        
+        return direct_links
 
     def _request(
             self,
@@ -820,10 +835,6 @@ class AllDebrid:
         dict
             Response of the request.
         """
-        apikey_validation_check = check_if_valid_key(self.apikey)
-        if not apikey_validation_check:
-            raise ValueError("API Key not valid!")
-
         if self.apikey is None or self.apikey == "":
             raise ValueError("API Key not found")
 
