@@ -202,3 +202,39 @@ class TestAllDebrid:
         alldebrid = AllDebrid(apikey="invalid_api_key")
         with pytest.raises(ValueError):
             alldebrid.get_pin()
+
+    def test_get_direct_stream_link_returns_string(self):
+        """
+        Ye matey, this test be checkin' if the get_direct_stream_link method returns a string.
+        """
+        alldebrid = AllDebrid(apikey=apikey)
+        link = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        direct_link = alldebrid.get_direct_stream_link(link=link)
+        assert isinstance(direct_link, str)
+
+    def test_get_direct_stream_link_returns_none(self):
+        """
+        Shiver me timbers! This test be checkin' if the get_direct_stream_link method returns none when given an invalid link.
+        """
+        alldebrid = AllDebrid(apikey=apikey)
+        link = "http://invalid_link.com"
+        direct_link = alldebrid.get_direct_stream_link(link=link)
+        assert direct_link is None
+
+    def test_get_direct_stream_link_with_multiple_links_returns_list_of_strings(self):
+        """
+        Arrr! This test be checkin' if the get_direct_stream_link method returns a list of direct links when given multiple links.
+        """
+        alldebrid = AllDebrid(apikey=apikey)
+        links = ["https://www.youtube.com/watch?v=dQw4w9WgXcQ", "https://www.youtube.com/watch?v=oHg5SJYRHA0"]
+        direct_links = alldebrid.get_direct_stream_link(link=links)
+        assert isinstance(direct_links, list)
+        assert all(isinstance(link, str) for link in direct_links)
+
+    def test_purge_recent_links_returns_dict(self):
+        """
+        Arrr! This test be checkin' if the purge_recent_links method returns a dict.
+        """
+        alldebrid = AllDebrid(apikey=apikey)
+        assert isinstance(alldebrid.purge_recent_links(), dict)
+        

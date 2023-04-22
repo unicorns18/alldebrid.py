@@ -53,7 +53,7 @@ from errors import APIError
 from endpoints import endpoints
 from utils import handle_exceptions
 
-HOST = "http://api.alldebrid.com/v4/"
+API_HOST = "http://api.alldebrid.com/v4/"
 
 class AllDebrid:
     """
@@ -72,13 +72,13 @@ class AllDebrid:
         self.apikey = apikey
         self.proxy = proxy
 
-    def ping(self) -> Dict[str, Any]:
+    def ping(self) -> dict[str, Any]:
         """
         Makes a request to the ping endpoint.
         
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response from the API.
 
         Raises
@@ -755,12 +755,13 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
+        if not isinstance(link, (str, list)):
+            raise ValueError("Link must be a string or list of strings.")
+        
         if isinstance(link, str):
             links = [link]
-        elif isinstance(link, list):
-            links = link
         else:
-            raise ValueError("Link must be a string or list of strings.")
+            links = link
         
         direct_links = []
         for link in links:
@@ -876,7 +877,7 @@ class AllDebrid:
         if endpoint is None or endpoint not in endpoints.values():
             raise ValueError(f"Invalid endpoint: {endpoint}")
 
-        url = HOST + endpoint + "?agent=" + agent
+        url = API_HOST + endpoint + "?agent=" + agent
 
         common_params = {
             'headers': auth_header,
