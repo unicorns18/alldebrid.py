@@ -45,6 +45,7 @@ Examples
 {'status': 'success', 'data': {'ping': 'pong'}}
 """
 import os
+import re
 import time
 from typing import Any, Dict, List, Optional, Union
 import requests
@@ -789,6 +790,30 @@ class AllDebrid:
             return direct_links[0]
         
         return direct_links
+    
+    def _check_valid_api_key(self, api_key: str) -> bool:
+        """
+        Check if the API key is valid.
+
+        Parameters
+        ----------
+        api_key: str
+            API key to check.
+
+        Returns
+        -------
+        bool
+            True if the API key is valid, False otherwise.
+        """
+        if not isinstance(api_key, (str, bytes)):
+            raise ValueError("API key must be a str or bytes-like object.")
+
+        key_pattern = re.compile(r'^[a-zA-Z0-9]{20}$')
+
+        if key_pattern.match(api_key):
+            return True
+        else:
+            return False
 
     def _request(
             self,
@@ -828,6 +853,9 @@ class AllDebrid:
         dict
             Response of the request.
         """
+        if not self._check_valid_api_key(self.apikey):
+            raise ValueError("Invalid API Key")
+
         if self.apikey is None or self.apikey == "":
             raise ValueError("API Key not found")
 
