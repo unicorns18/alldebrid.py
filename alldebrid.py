@@ -207,7 +207,7 @@ class AllDebrid:
         
         return response
     
-    def download_link(self, links: Union[str, List[str]]) -> Dict[str, Any]:
+    def download_link(self, links: Union[str, List[str]], password: Optional[str] = None) -> Dict[str, Any]:
         """
         Makes a request to the download link endpoint.
 
@@ -215,6 +215,8 @@ class AllDebrid:
         ----------
         links : Union[str, List[str]]
             The link(s) to unlock.
+        password : Optional[str], optional
+            The password for the link, if it has one, by default None
 
         Returns
         -------
@@ -228,7 +230,6 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        # TODO: Support passwords for links, if it has one.
         endpoint = endpoints.get("download link")
         if not endpoint:
             raise ValueError("Endpoint not found for download link")
@@ -240,6 +241,9 @@ class AllDebrid:
             "link": links,
             "agent": "python"
         }
+
+        if password:
+            data["password"] = password
         
         response = self._request(method="GET", endpoint=endpoint, params=data)
         if response.get("status") == "error":
