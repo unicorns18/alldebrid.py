@@ -60,7 +60,7 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(file_path="")
+            alldebrid.upload_file(file_paths="")
 
     def test_invalid_endpoint_name(self):
         """
@@ -122,7 +122,7 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(file_path=None)
+            alldebrid.upload_file(file_paths=None)
 
     def test_upload_file_endpoint_with_files(self):
         """
@@ -145,7 +145,7 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(file_path="invalid_file.txt")
+            alldebrid.upload_file(file_paths="invalid_file.txt")
 
     def test_upload_file_endpoint_with_no_file(self):
         """
@@ -153,7 +153,7 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
-            alldebrid.upload_file(file_path="")
+            alldebrid.upload_file(file_paths="")
 
     # TODO: Write the test for the upload_file method with multiple files.
     def test_upload_file_endpoint_with_multiple_files(self):
