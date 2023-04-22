@@ -64,7 +64,6 @@ class AllDebrid:
     apikey : str
         The API key to use for the requests.
     """
-    # TODO: In all the methods, add more detailed error messages to the raise ValueError statements, so that the user can understand why the error occurred. For example, instead of raising a ValueError("Endpoint not found for Delayed links"), raise a ValueError("Endpoint not found for Delayed links. Please check if the endpoint is correct.").
 
     def __init__(self, apikey: str, proxy: Optional[str] = None) -> None:
         """
