@@ -118,7 +118,7 @@ class AllDebrid:
         """
         endpoint = endpoints.get("get pin")
         if not endpoint:
-            raise ValueError("Endpoint not found")
+            raise ValueError(f"Endpoint {endpoint} not found")
 
         response = self._request(method="GET", endpoint=endpoint)
 
@@ -373,13 +373,13 @@ class AllDebrid:
         
         return response
 
-    def upload_file(self, file_path: str) -> dict:
+    def upload_file(self, file_paths: List[str]) -> dict:
         """
         Makes a request to the upload file endpoint.
 
         Parameters
         ----------
-        files : str
+        file_paths : List[str]
             The files to upload.
 
         Returns
@@ -394,26 +394,28 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        if not isinstance(file_path, str) and not file_path:
-            raise ValueError(f"File path cannot be None ({file_path}, {type(file_path)})")
-
-        if not os.path.isfile(file_path):
-            raise ValueError("No files to upload")
-
+        if not file_paths:
+            raise ValueError(f"No files to upload. {file_paths}")
+        
+        for i, file_path in enumerate(file_paths):
+            if not isinstance(file_path, str) or not os.path.isfile(file_path):
+                raise ValueError(f"File path is not valid. ({i}: {file_path})")
+            
         endpoint = endpoints.get("upload file")
         if not endpoint:
             raise ValueError("Endpoint not found for Upload file")
+        
+        files = {}
+        for i, file_path in enumerate(file_paths):
+            with open(file_path, 'rb') as file:
+                files[f"files[{i}]"] = (file.name, file.read(), 'application/x-bittorrent')
 
-        # TODO: Support multiple files at once
-        with open(file_path, 'rb') as file:
-            file = {'files[0]': file.read()}
-
-        response = self._request(method="POST", endpoint=endpoint, files=file)
+        response = self._request(method="POST", endpoint=endpoint, files=files)
 
         if response.get("status") == "error":
             error = response["error"]
             raise APIError(error["code"], error["message"])
-
+        
         return response
 
     def get_magnet_status(self, magnet_id: int) -> dict:

@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from alldebrid import AllDebrid
+from pprint import pprint
 
 # Load environment variables from .env file
 load_dotenv()
