@@ -175,6 +175,8 @@ class AllDebrid:
 
         if response.get("status") == "error":
             error = response["error"]
+            if error["code"] == "PIN_INVALID":
+                raise ValueError("Invalid pin")
             raise APIError(error["code"], error["message"])
         
         return response
@@ -823,7 +825,7 @@ class AllDebrid:
             return True
         else:
             return False
-
+        
     def _request(
             self,
             method: str,

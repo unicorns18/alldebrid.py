@@ -240,4 +240,20 @@ class TestAllDebrid:
         alldebrid = AllDebrid(apikey=apikey)
         assert isinstance(alldebrid.purge_recent_links(), dict)
 
-    
+    def test_check_pin_status(self):
+        """
+        Arrr! This test be checkin' if the check_pin_status method returns a dict.
+        """
+        alldebrid = AllDebrid(apikey=apikey)
+        pin = alldebrid.get_pin()
+        check_pin = alldebrid.check_pin(pin_response=pin)
+        assert isinstance(check_pin, dict)
+        assert check_pin.get("status") == "success"
+
+    def test_check_pin_status_with_invalid_pin(self):
+        """
+        Arrr! This test be checkin' if the check_pin_status method raises a ValueError when given an invalid pin.
+        """
+        alldebrid = AllDebrid(apikey=apikey)
+        with pytest.raises(ValueError):
+            alldebrid.check_pin(pin="invalid_pin", hash_value="invalid_hash")

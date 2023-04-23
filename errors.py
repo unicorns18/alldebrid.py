@@ -70,6 +70,9 @@ class EndpointNotFoundError(Exception):
         """
         return self._endpoint
     
+class UnknownAPIError(Exception):
+    pass
+    
 apiErrors = {
     'GENERIC': 'An error occurred',
     '404': "Endpoint doesn't exist",
