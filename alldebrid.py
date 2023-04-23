@@ -9,7 +9,10 @@ AllDebrid
 
 Fields
 ------
-apikey: str
+- apikey: str
+    The API key to use for the requests.
+- proxy: Optional[str]
+    The proxy to use for the requests.
 
 Functions
 ---------
@@ -128,13 +131,13 @@ class AllDebrid:
         
         return response
     
-    def check_pin(self, get_pin_response=None, hash_value=None, pin=None) -> dict:
+    def check_pin(self, pin_response=None, hash_value=None, pin=None) -> dict:
         """
         Makes a request to the check pin endpoint.
 
         Parameters
         ----------
-        get_pin_response : dict
+        pin_response : dict
             The response from the get pin endpoint.
         pin : str
             The pin to check.
@@ -149,17 +152,17 @@ class AllDebrid:
         Raises
         ------
         ValueError
-            If neither get_pin_response nor hash_value and pin are provided.
+            If neither pin_response nor hash_value and pin are provided.
         APIError
             If the API returns an error.
         """
-        if get_pin_response is None and (hash_value is None or pin is None):
-            raise ValueError("Either get_pin_response or hash and pin must be provided")
+        if pin_response is None and (hash_value is None or pin is None):
+            raise ValueError("Either pin_response or hash and pin must be provided")
 
         params = {}
-        if get_pin_response is not None:
-            params["check"] = get_pin_response["check"]
-            params["pin"] = get_pin_response["pin"]
+        if pin_response is not None:
+            params["check"] = pin_response["data"]["check"]
+            params["pin"] = pin_response["data"]["pin"]
         else:
             params["hash"] = hash_value
             params["pin"] = pin
@@ -326,7 +329,7 @@ class AllDebrid:
         
         endpoint = endpoints.get("delayed links")
         if not endpoint:
-            raise ValueError("Endpoint not found for Delayed links")
+            raise ValueError("Endpoint not found for delayed links")
         
         data = { "id": download_id }
 
@@ -603,20 +606,22 @@ class AllDebrid:
             raise ValueError("Endpoint not found for saved links")
         
         response = self._request(method="GET", endpoint=endpoint)
-
+        if not response["data"]["links"]:
+            return {}
+        
         if response.get("status") == "error":
             error = response["error"]
             raise APIError(error["code"], error["message"])
         
         return response
 
-    def save_new_link(self, link_id: Union[str, List[str]]) -> dict:
+    def save_new_link(self, link: Union[str, List[str]]) -> dict:
         """
         Save a new link.
 
         Parameters
         ----------
-        link_id: Union[str, List[str]]
+        link: Union[str, List[str]]
             Link id to save.
 
         Returns
@@ -631,14 +636,14 @@ class AllDebrid:
         ValueError
             If endpoint is not found.
         """
-        if not link_id:
+        if not link:
             raise ValueError("No link id to save")
 
         endpoint = endpoints.get("save a link")
         if not endpoint:
             raise ValueError("Endpoint not found for save new link")
         
-        response = self._request(method="POST", endpoint=endpoint, links=link_id)
+        response = self._request(method="POST", endpoint=endpoint, links=link)
 
         if response.get("status") == "error":
             error = response["error"]
@@ -890,7 +895,7 @@ class AllDebrid:
             response = session.request(
                 method='GET',
                 url=url,
-                data=magnets,
+                data=magnets or links,
                 **common_params
             )
         elif method == "POST":
@@ -909,7 +914,7 @@ class AllDebrid:
             response = session.request(
                 method='POST',
                 url=url,
-                data=magnets,
+                data=magnets or links,
                 **common_params
             )
 

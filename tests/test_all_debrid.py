@@ -239,4 +239,5 @@ class TestAllDebrid:
         """
         alldebrid = AllDebrid(apikey=apikey)
         assert isinstance(alldebrid.purge_recent_links(), dict)
-        
+
+    
