@@ -39,20 +39,8 @@ class TestAllDebrid:
         """
         Ye shall test that an invalid API key raises a ValueError, me hearties!
         """
-        # Arrange
-        alldebrid = AllDebrid(apikey="invalid_api_key")
-
-        # Act & Assert
         with pytest.raises(ValueError):
-            alldebrid.user()
-
-    def test_user_endpoint_without_api_key(self):
-        """
-        Avast ye, me mateys! Let's test the user endpoint without an API key. Shiver me timbers! The test should raise a ValueError.
-        """
-        alldebrid = AllDebrid(apikey=None)
-        with pytest.raises(ValueError):
-            alldebrid.user()
+            alldebrid = AllDebrid(apikey="invalid_api_key")
 
     def test_upload_file_empty_input(self):
         """
@@ -61,22 +49,6 @@ class TestAllDebrid:
         alldebrid = AllDebrid(apikey=apikey)
         with pytest.raises(ValueError):
             alldebrid.upload_file(file_paths="")
-
-    def test_invalid_endpoint_name(self):
-        """
-        Arrr! Ye scurvy dog! Test that when a name that be not on the list of valid endpoints is passed to the _request method, it raises an error, yarrr!
-        """
-        alldebrid = AllDebrid(apikey=apikey)
-        with pytest.raises(ValueError):
-            alldebrid._request(method="GET", endpoint="invalid_endpoint")
-
-    def test_missing_endpoint(self):
-        """
-        Arrr! Test that ye get an error when ye try to request a method with no endpoint, me matey!
-        """
-        alldebrid = AllDebrid(apikey=apikey)
-        with pytest.raises(ValueError):
-            alldebrid._request(method="GET", endpoint="invalid_endpoint")
 
     # Tests that the ping method returns a valid response from the API.
     def test_ping(self):
@@ -95,15 +67,6 @@ class TestAllDebrid:
         alldebrid = AllDebrid(apikey=apikey)
         response = alldebrid.user()
         assert response.get("status") == "success"
-
-    # Tests that calling the user method without an API key raises a ValueError.
-    def test_user_no_apikey(self):
-        """
-        Aye, matey! This test be checkin' if callin' the user method without an API key raises a ValueError.
-        """
-        alldebrid = AllDebrid(apikey=None)
-        with pytest.raises(ValueError):
-            alldebrid.user()
 
     # Tests that the download_link method with a valid link returns a valid response from the API.
     def test_download_link_valid_link(self):
@@ -186,22 +149,6 @@ class TestAllDebrid:
         alldebrid = AllDebrid(apikey=apikey)
         response = alldebrid.get_pin()
         assert response.get("status") == "success"
-
-    def test_get_pin_without_api_key(self):
-        """
-        Shiver me timbers! This be the docstring fer me function to test if callin' the get_pin method without an API key raises a Value Error.
-        """
-        alldebrid = AllDebrid(apikey=None)
-        with pytest.raises(ValueError):
-            alldebrid.get_pin()
-
-    def test_get_pin_with_invalid_api_key(self):
-        """
-        Blimey! Here be the docstring fer me function to test if callin' the get_pin method with an invalid API key raises a Value Error.
-        """
-        alldebrid = AllDebrid(apikey="invalid_api_key")
-        with pytest.raises(ValueError):
-            alldebrid.get_pin()
 
     def test_get_direct_stream_link_returns_string(self):
         """

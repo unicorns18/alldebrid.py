@@ -55,6 +55,7 @@ import requests
 from errors import APIError
 from endpoints import endpoints
 from utils import handle_exceptions
+from urllib.parse import urljoin
 
 API_HOST = "http://api.alldebrid.com/v4/"
 
@@ -74,6 +75,8 @@ class AllDebrid:
         """
         self.apikey = apikey
         self.proxy = proxy
+        if not self._check_valid_api_key(apikey):
+            raise ValueError("Invalid API key")
 
     def ping(self) -> dict[str, Any]:
         """
@@ -831,11 +834,12 @@ class AllDebrid:
             method: str,
             endpoint: str,
             agent: str = "python",
-            params: Optional[Dict[str, Any]] = None,
-            files: Optional[Dict[str, Any]] = None,
+            params: Union[Dict[str, Any], None] = None,
+            files: Union[Dict[str, Any], None] = None,
             magnets: Optional[str] = None,
             links: Optional[str] = None,
             timeout: int = 10,
+            expected_status: List[int] = [200]
         ) -> dict:
         """
         Make the request to the API.
@@ -858,18 +862,16 @@ class AllDebrid:
             Links of the request.
         timeout: int
             Timeout of the request.
-
+        expected_status: List[int]
+            Expected status of the request. Default is [200].
         Returns
         -------
         dict
             Response of the request.
         """
-        if not self._check_valid_api_key(self.apikey):
-            raise ValueError("Invalid API Key")
-
         if self.apikey is None or self.apikey == "":
             raise ValueError("API Key not found")
-
+                        
         auth_header = {"Authorization": "Bearer " + self.apikey}
         session = requests.Session()
 
@@ -878,13 +880,18 @@ class AllDebrid:
 
         params = {} if params is None else params
         files = {} if files is None else files
-        magnets = [] if magnets is None else magnets
-        links = [] if links is None else links
+        magnets = None if magnets is None else magnets
+        links = None if links is None else links
 
-        if endpoint is None or endpoint not in endpoints.values():
-            raise ValueError(f"Invalid endpoint: {endpoint}")
+        if not isinstance(magnets, list):
+            magnets = [magnets] if magnets is not None else []
 
-        url = API_HOST + endpoint + "?agent=" + agent
+        if not isinstance(links, list):
+            links = [links] if links is not None else []
+        
+        url = urljoin(API_HOST, endpoint)
+        url += "?agent=" + agent
+        # url = API_HOST + endpoint + "?agent=" + agent
 
         common_params = {
             'headers': auth_header,
@@ -894,12 +901,13 @@ class AllDebrid:
         }
 
         if method == "GET":
-            response = session.request(
-                method='GET',
-                url=url,
-                data=magnets or links,
-                **common_params
-            )
+            # response = session.request(
+            #     method='GET',
+            #     url=url,
+            #     data=magnets or links,
+            #     **common_params
+            # )
+            data = magnets or links
         elif method == "POST":
             if magnets is not None and len(magnets) > 0:
                 if isinstance(magnets, str):
@@ -913,13 +921,20 @@ class AllDebrid:
                 links = {'links[]': links}
             else:
                 links = None
-            response = session.request(
-                method='POST',
-                url=url,
-                data=magnets or links,
-                **common_params
-            )
+            data = magnets or links
 
-        if response.status_code == 200:
-            return response.json()
-        raise APIError(response.status_code, response.text)
+        response = session.request(
+            method=method,
+            url=url,
+            data=data,
+            **common_params
+        )
+
+        if response.status_code in expected_status:
+            if "application/json" in response.headers.get("Content-Type", ""):
+                return response.json()
+            else:
+                raise APIError(response.status_code, "Invalid response content type")
+        else:
+            raise APIError(response.status_code, response.text)
+        
