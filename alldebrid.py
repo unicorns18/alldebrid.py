@@ -1,4 +1,4 @@
-#pylint: disable=C0301
+#pylint: disable=C0301,C0302
 """
 The AllDebrid class is designed to interact with the AllDebrid API. It takes an API key as a parameter and provides methods to make requests to various endpoints of the API. The class can be used to ping the API, get a pin, check a pin, get user information, unlock download links, get streaming links, upload magnets and files, check magnet status, delete magnets, restart magnets, check magnet instant, get saved links, save new links, delete saved links, get recent links, and purge recent links.
 
@@ -49,15 +49,129 @@ Examples
 """
 import os
 import re
-import time
 from typing import Any, Dict, List, Optional, Union
-import requests
-from errors import APIError
-from endpoints import endpoints
-from utils import handle_exceptions
 from urllib.parse import urljoin
+import time
+import requests
+from errors import APIError, MaxAttemptsExceededException
+from endpoints import get_endpoints
+from utils import handle_exceptions
 
 API_HOST = "http://api.alldebrid.com/v4/"
+
+class StreamLinkProcessor:
+    """
+    The StreamLinkProcessor class is designed to process streaming links for video content.
+    It takes a downloader, the maximum number of attempts (max_attempts) and a delay, which determines how long to wait between attempts to obtain the desired result from the downloader.
+    It contains a single method, get_delayed_link, which attempts to obtain a delayed streaming link from the downloader.
+    
+    Methods
+    -------
+    get_delayed_link(link: str) -> Optional[str]
+        Attempts to obtain a delayed streaming link from the downloader.
+
+    Parameters
+    ----------
+    downloader: Any
+        The downloader to use to obtain the delayed streaming link.
+    max_attempts: int (default=5)
+        The maximum number of attempts to make to obtain the delayed streaming link.
+    delay: int (default=3)
+        The delay between attempts to obtain the delayed streaming link.
+
+    Returns
+    -------
+    Optional[str]
+        The delayed streaming link.
+
+    Raises
+    ------
+    Exception
+        Raised when the maximum number of attempts is reached.
+    """
+
+    def __init__(self, downloader: Any, max_attempts: int = 5, delay: int = 3, retry_delay: int = 3, max_delay: int = 30):
+        self.downloader = downloader
+        self.max_attempts = max_attempts
+        self.delay = delay
+        self.retry_delay = retry_delay
+        self.max_delay = max_delay
+
+    def _try_get_delayed_link(self, link: str, downloader, max_attempts, retry_delay, max_delay) -> Optional[str]:
+        """
+        Attempts to obtain a delayed streaming link from the downloader for the given streaming content link. This method makes repeated calls to the downloader object to try and obtain the delayed link.
+
+        Args:
+            link (str): A link to a streaming content.
+            downloader (object): A downloader object.
+            max_attempts (int): The maximum number of attempts to obtain the delayed link.
+            retry_delay (float): The delay time between each attempt in seconds.
+            max_delay (float): The maximum duration of the loop in seconds.
+
+        Returns:
+            Optional[str]: The delayed link which can later be used to stream the video, or None if a delayed link 
+            could not be obtained.
+
+        Raises:
+            TimeoutError: Raised when the maximum time limit to obtain a delayed link has been reached without success.
+            Exception: Raised when the maximum number of attempts to obtain a delayed link has been reached without success.
+        """
+        unlock_response = downloader.download_link(link)
+        # data_id = unlock_response["data"]["id"]
+        # stream_id = unlock_response["data"]["streams"][0]["id"]
+        data_id = unlock_response.get("data", {}).get("id")
+        stream_id = unlock_response.get("data", {}).get("streams", [{}])[0].get("id")
+        if not data_id or stream_id:
+            raise ValueError("Could not obtain data id or stream id.")
+
+        stream_response = downloader.streaming_links(link, data_id, stream_id)
+
+        attempts = 0
+        time_limit = max_delay
+        start_time = time.time()
+
+        while attempts < max_attempts:
+            delayed_link_response = downloader.delayed_links(download_id=stream_response["data"]["delayed"])
+
+            status = delayed_link_response["data"]["status"]
+            if status == 2:
+                return delayed_link_response["data"]["link"]
+            elif status == 1:
+                elapsed_time = time.time() - start_time
+                if elapsed_time >= time_limit:
+                    raise TimeoutError("Max delay reached. Cannot get direct link.")
+            time.sleep(retry_delay)
+            attempts += 1
+
+        raise MaxAttemptsExceededException("Max attempts reached. Cannot get direct link.")
+
+    def get_delayed_link(self, link: str) -> Optional[str]:
+        """
+        Attempts to obtain a delayed streaming link from the downloader for the given streaming content link.
+
+        Args:
+            link (str): A link to a streaming content.
+
+        Returns:
+            Optional[str]: The delayed link which can later be used to stream the video, or None if a delayed link 
+            could not be obtained.
+
+        Raises:
+            TimeoutError: Raised when the maximum time limit to obtain a delayed link has been reached without success.
+            Exception: Raised when the maximum number of attempts to obtain a delayed link has been reached without success.
+        """
+        try:
+            return self._try_get_delayed_link(
+                link,
+                self.downloader,
+                self.max_attempts,
+                self.retry_delay,
+                self.max_delay
+            )                                
+        except Exception as exc:
+            raise exc
+        finally:
+            self.downloader.close_connection()
 
 class AllDebrid:
     """
@@ -69,14 +183,20 @@ class AllDebrid:
         The API key to use for the requests.
     """
 
-    def __init__(self, apikey: str, proxy: Optional[str] = None) -> None:
+    def __init__(self, apikey: str, proxy: Optional[str] = None, timeout: int = None) -> None:
         """
         __init__ method for the AllDebrid class.
         """
         self.apikey = apikey
+        self._authenticated = False
         self.proxy = proxy
-        if not self._check_valid_api_key(apikey):
-            raise ValueError("Invalid API key")
+        self.auth_header = {"Authorization": "Bearer " + apikey}
+        self.base_url = API_HOST
+        self.timeout = timeout
+        
+        self.session = requests.Session()
+
+        self.endpoints = get_endpoints()
 
     def ping(self) -> dict[str, Any]:
         """
@@ -94,7 +214,7 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        endpoint = endpoints.get("ping")
+        endpoint = self.endpoints.get("ping")
         if not endpoint:
             raise ValueError("Endpoint not found for ping")
         
@@ -122,7 +242,7 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        endpoint = endpoints.get("get pin")
+        endpoint = self.endpoints.get("get pin")
         if not endpoint:
             raise ValueError(f"Endpoint {endpoint} not found")
 
@@ -170,7 +290,7 @@ class AllDebrid:
             params["hash"] = hash_value
             params["pin"] = pin
 
-        endpoint = endpoints.get("check pin")
+        endpoint = self.endpoints.get("check pin")
         if not endpoint:
             raise ValueError("Endpoint not found for Check pin")
         
@@ -200,7 +320,7 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        endpoint = endpoints.get("user")
+        endpoint = self.endpoints.get("user")
         if not endpoint:
             raise ValueError("Endpoint not found for User")
 
@@ -237,7 +357,7 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
-        endpoint = endpoints.get("download link")
+        endpoint = self.endpoints.get("download link")
         if not endpoint:
             raise ValueError("Endpoint not found for download link")
 
@@ -291,7 +411,7 @@ class AllDebrid:
             "stream": stream
         }
 
-        endpoint = endpoints.get("streaming links")
+        endpoint = self.endpoints.get("streaming links")
         if not endpoint:
             raise ValueError("Endpoint not found for Streaming links")
 
@@ -332,7 +452,7 @@ class AllDebrid:
         if not download_id:
             raise ValueError("ID not found for delayed links")
         
-        endpoint = endpoints.get("delayed links")
+        endpoint = self.endpoints.get("delayed links")
         if not endpoint:
             raise ValueError("Endpoint not found for delayed links")
         
@@ -370,7 +490,7 @@ class AllDebrid:
         if not magnets:
             raise ValueError("Magnets not found for upload magnets")
         
-        endpoint = endpoints.get("upload magnet")
+        endpoint = self.endpoints.get("upload magnet")
         if endpoint is None:
             raise ValueError("Endpoint not found for Upload magnets")
 
@@ -416,7 +536,7 @@ class AllDebrid:
             if not isinstance(file_path, str) or not os.path.isfile(file_path):
                 raise ValueError(f"File path is not valid. ({i}: {file_path})")
             
-        endpoint = endpoints.get("upload file")
+        endpoint = self.endpoints.get("upload file")
         if not endpoint:
             raise ValueError("Endpoint not found for Upload file")
         
@@ -457,7 +577,7 @@ class AllDebrid:
         if not magnet_id:
             raise ValueError("Magnet ID not found for magnet status")
         
-        endpoint = endpoints.get("status")
+        endpoint = self.endpoints.get("status")
         if not endpoint:
             raise ValueError("Endpoint not found for Magnet status")
 
@@ -493,7 +613,7 @@ class AllDebrid:
         if not magnet_id:
             raise ValueError("Magnet ID not found for delete magnet")
         
-        endpoint = endpoints.get("delete")
+        endpoint = self.endpoints.get("delete")
         if not endpoint:
             raise ValueError("Endpoint not found for delete magnet")
 
@@ -533,7 +653,7 @@ class AllDebrid:
         if magnet_id is not None and ids is not None:
             raise ValueError("Only one of magnet_id or ids can be provided for restart magnet")
         
-        endpoint = endpoints.get("restart")
+        endpoint = self.endpoints.get("restart")
         if not endpoint:
             raise ValueError("Endpoint not found for restart magnet")
         
@@ -572,7 +692,7 @@ class AllDebrid:
         ValueError
             If endpoint is not found.
         """
-        endpoint = endpoints.get("instant")
+        endpoint = self.endpoints.get("instant")
         if not endpoint:
             raise ValueError("Endpoint not found for check magnet instant")
 
@@ -606,7 +726,7 @@ class AllDebrid:
         ValueError
             If endpoint is not found.
         """
-        endpoint = endpoints.get("saved links")
+        endpoint = self.endpoints.get("saved links")
         if not endpoint:
             raise ValueError("Endpoint not found for saved links")
         
@@ -644,7 +764,7 @@ class AllDebrid:
         if not link:
             raise ValueError("No link id to save")
 
-        endpoint = endpoints.get("save a link")
+        endpoint = self.endpoints.get("save a link")
         if not endpoint:
             raise ValueError("Endpoint not found for save new link")
         
@@ -677,7 +797,7 @@ class AllDebrid:
         ValueError
             If endpoint is not found.
         """
-        endpoint = endpoints.get("delete saved link")
+        endpoint = self.endpoints.get("delete saved link")
         if not endpoint:
             raise ValueError("Endpoint not found for delete saved link")
         
@@ -703,7 +823,7 @@ class AllDebrid:
         APIError
             If any error occurred while getting recent links.
         """
-        endpoint = endpoints.get("recent links")
+        endpoint = self.endpoints.get("recent links")
         if not endpoint:
             raise ValueError("Endpoint not found for recent links.")
         
@@ -731,7 +851,7 @@ class AllDebrid:
         ValueError
             If the endpoint is not found.
         """
-        endpoint = endpoints.get("purge history")
+        endpoint = self.endpoints.get("purge history")
         if not endpoint:
             raise ValueError("Endpoint URL not found for purging recent links.")
         
@@ -765,46 +885,51 @@ class AllDebrid:
         APIError
             If the API returns an error.
         """
+        self.validate_input(link)
+
+        links = [link] if isinstance(link, str) else link
+
+        direct_links = self.get_direct_links(links, StreamLinkProcessor(self))
+
+        return direct_links[0] if len(direct_links) == 1 else direct_links
+
+    def validate_input(self, link: Any) -> None:
+        """
+        Checks if the input link is a string or a list of strings. If not, raises a ValueError.
+
+        Args:
+            link (Any): A string or a list of strings.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the link is not a string or a list of strings.
+        """
         if not isinstance(link, (str, list)):
             raise ValueError("Link must be a string or list of strings.")
-        
-        if isinstance(link, str):
-            links = [link]
-        else:
-            links = link
-        
+
+    def get_direct_links(self, links: List[str], processor: StreamLinkProcessor) -> List[str]:
+        """
+        Given a list of links and a StreamLinkProcessor object, returns a list of delayed links
+        that have been processed into direct links.
+
+        Args:
+            links (List[str]): A list of delayed links to be processed.
+            processor (StreamLinkProcessor): A StreamLinkProcessor object with a method\n            `get_delayed_link(link: str) -> str` that converts delayed links to direct
+                links.
+
+        Returns:
+            List[str]: A list of processed direct links.
+        """
         direct_links = []
         for link in links:
-            unlock_response = self.download_link(link)
-            data_id = unlock_response["data"]["id"]
-            stream_id = unlock_response["data"]["streams"][0]["id"]
+            delayed_link = processor.get_delayed_link(link)
+            if delayed_link is not None:
+                direct_links.append(delayed_link)
 
-            stream_response = self.streaming_links(link, data_id, stream_id)
-
-            while True:
-                delayed_link_response = self.delayed_links(
-                    download_id=stream_response["data"]["delayed"]
-                )
-                
-                status = delayed_link_response["data"]["status"]
-                if status == 1:
-                    break
-                elif status == 2:
-                    delayed_link = delayed_link_response["data"]["link"]
-                    direct_links.append(delayed_link)
-                    break
-                else:
-                    time.sleep(2)
-                    continue
-        
-        if not direct_links:
-            return None
-        
-        if len(direct_links) == 1:
-            return direct_links[0]
-        
         return direct_links
-    
+
     def _check_valid_api_key(self, api_key: str) -> bool:
         """
         Check if the API key is valid.
@@ -823,12 +948,104 @@ class AllDebrid:
             raise ValueError("API key must be a str or bytes-like object.")
 
         key_pattern = re.compile(r'^[a-zA-Z0-9]{20}$')
-
-        if key_pattern.match(api_key):
-            return True
-        else:
+        try:
+            return bool(key_pattern.match(api_key))
+        except TypeError:
             return False
         
+    def _authenticate(self):
+        if not self.apikey or self.apikey is None or self.apikey == "":
+            raise ValueError("No API key provided.")
+        
+        if not self._check_valid_api_key(self.apikey):
+            raise ValueError("Invalid API key provided.")
+        
+        self._authenticated = True
+        
+    def _get_session(self):
+        if self.session is None:
+            self.session = requests.Session()
+
+            if self.proxy is not None:
+                self.session.proxies = {"http": self.proxy, "https": self.proxy}
+
+        return self.session
+    
+    def _build_url(self, endpoint: str, agent: str) -> str:
+        return urljoin(API_HOST, endpoint) + "?agent=" + agent
+    
+    def _build_data(self, magnets: Optional[str], links: Optional[str]) -> dict:
+        if not magnets:
+            magnets = []
+        elif isinstance(magnets, str):
+            magnets = [magnets]
+
+        if not links:
+            links = []
+        elif isinstance(links, str):
+            links = [links]
+
+        data = {'magnets[]': magnets} if magnets else {'links[]': links}
+
+        return data
+    
+    def _handle_error(self, response: requests.Response, exc: requests.exceptions.RequestException, status_code: int = 408, message: str = None) -> None:
+        if response is not None:
+            raise APIError(response.status_code, response.text) from exc
+        else:
+            raise APIError(status_code, message) from exc
+    
+    def _send_request(
+            self,
+            method: str,
+            url: str,
+            auth_header: dict,
+            data: dict,
+            params: dict,
+            files: dict,
+            timeout: int,
+            session: requests.Session,
+            expected_response: List[int] = None,
+        ) -> dict:
+        if expected_response is None:
+            expected_response = [200]
+
+        common_params = {
+            'headers': auth_header,
+            'params': params,
+            'files': files,
+            'timeout': timeout
+        }
+
+        try:
+            response = session.request(
+                method=method,
+                url=url,
+                data=data,
+                **common_params
+            )
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as exc:
+            self._handle_error(response, exc)
+        except requests.exceptions.Timeout as exc:
+            self._handle_error(response, exc, status_code=408, message="Request timed out.")
+        except requests.exceptions.ConnectionError as exc:
+            self._handle_error(response, exc, status_code=503, message="Failed to connect to AllDebrid's API.")
+        except requests.exceptions.RequestException as exc:
+            self._handle_error(response, exc, status_code=408, message=f"Failed to connect to AllDebrid's API: {url}. Error message: {exc}")
+
+        if response.status_code not in expected_response:
+            raise APIError(response.status_code, response.text)
+
+        return response.json()
+    
+    def close_connection(self):
+        """
+        Close the connection to the API.
+        """
+        if self.session is not None:
+            self.session.close()
+                
     def _request(
             self,
             method: str,
@@ -838,8 +1055,6 @@ class AllDebrid:
             files: Union[Dict[str, Any], None] = None,
             magnets: Optional[str] = None,
             links: Optional[str] = None,
-            timeout: int = 10,
-            expected_status: List[int] = [200]
         ) -> dict:
         """
         Make the request to the API.
@@ -860,81 +1075,28 @@ class AllDebrid:
             Magnets of the request.
         links: Optional[str]
             Links of the request.
-        timeout: int
-            Timeout of the request.
-        expected_status: List[int]
-            Expected status of the request. Default is [200].
         Returns
         -------
         dict
             Response of the request.
         """
-        if self.apikey is None or self.apikey == "":
-            raise ValueError("API Key not found")
-                        
-        auth_header = {"Authorization": "Bearer " + self.apikey}
-        session = requests.Session()
+        if not self._authenticated:
+            self._authenticate()
 
-        if self.proxy is not None:
-            session.proxies = {"http": self.proxy, "https": self.proxy}
+        url = self._build_url(endpoint, agent)
+        data = self._build_data(magnets, links)
+        session = self._get_session()
+        timeout = self.timeout if self.timeout is not None else 10
 
-        params = {} if params is None else params
-        files = {} if files is None else files
-        magnets = None if magnets is None else magnets
-        links = None if links is None else links
-
-        if not isinstance(magnets, list):
-            magnets = [magnets] if magnets is not None else []
-
-        if not isinstance(links, list):
-            links = [links] if links is not None else []
-        
-        url = urljoin(API_HOST, endpoint)
-        url += "?agent=" + agent
-        # url = API_HOST + endpoint + "?agent=" + agent
-
-        common_params = {
-            'headers': auth_header,
-            'params': params,
-            'files': files,
-            'timeout': timeout
-        }
-
-        if method == "GET":
-            # response = session.request(
-            #     method='GET',
-            #     url=url,
-            #     data=magnets or links,
-            #     **common_params
-            # )
-            data = magnets or links
-        elif method == "POST":
-            if magnets is not None and len(magnets) > 0:
-                if isinstance(magnets, str):
-                    magnets = [magnets]
-                magnets = {'magnets[]': magnets}
-            else:
-                magnets = None
-            if links is not None and len(links) > 0:
-                if isinstance(links, str):
-                    links = [links]
-                links = {'links[]': links}
-            else:
-                links = None
-            data = magnets or links
-
-        response = session.request(
+        response = self._send_request(
             method=method,
             url=url,
+            auth_header=self.auth_header,
             data=data,
-            **common_params
+            params=params,
+            files=files,
+            timeout=timeout,
+            session=session,
         )
 
-        if response.status_code in expected_status:
-            if "application/json" in response.headers.get("Content-Type", ""):
-                return response.json()
-            else:
-                raise APIError(response.status_code, "Invalid response content type")
-        else:
-            raise APIError(response.status_code, response.text)
-        
+        return response

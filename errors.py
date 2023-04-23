@@ -72,6 +72,9 @@ class EndpointNotFoundError(Exception):
     
 class UnknownAPIError(Exception):
     pass
+
+class MaxAttemptsExceededException(Exception):
+    pass
     
 apiErrors = {
     'GENERIC': 'An error occurred',

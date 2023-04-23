@@ -8,18 +8,18 @@ load_dotenv()
 
 alldebrid = AllDebrid(apikey=os.getenv("ALLDEBRID_API_KEY"))
 
-# Singular link
+# # Singular link
 LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 streaming_link = alldebrid.get_direct_stream_link(link=LINK)
 
-# Multiple links
+# # Multiple links
 links = [
     'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     'https://www.youtube.com/watch?v=L_jWHffIx5E',
     'https://www.youtube.com/watch?v=QH2-TGUlwu4'
 ]
-# Congrats to you if you recognize the first link ;)
+# # Congrats to you if you recognize the first link ;)
 
 list_of_links = alldebrid.get_direct_stream_link(link=links)
 
