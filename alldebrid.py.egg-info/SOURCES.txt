@@ -1,0 +1,9 @@
+README.md
+setup.py
+alldebrid/__init__.py
+alldebrid/alldebrid.py
+alldebrid.py.egg-info/PKG-INFO
+alldebrid.py.egg-info/SOURCES.txt
+alldebrid.py.egg-info/dependency_links.txt
+alldebrid.py.egg-info/requires.txt
+alldebrid.py.egg-info/top_level.txt

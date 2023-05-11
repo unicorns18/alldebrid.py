@@ -7,7 +7,7 @@ import sys
 import pytest
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
-from alldebrid import AllDebrid # pylint: disable=C0413
+from alldebrid.alldebrid import AllDebrid # pylint: disable=C0413
 
 load_dotenv()
 
