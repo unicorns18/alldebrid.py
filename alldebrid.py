@@ -1,4 +1,4 @@
-#pylint: disable=C0301,C0302
+#pylint: disable=C0301,C0302,C0303,C0115
 """
 The AllDebrid class is designed to interact with the AllDebrid API. It takes an API key as a parameter and provides methods to make requests to various endpoints of the API. The class can be used to ping the API, get a pin, check a pin, get user information, unlock download links, get streaming links, upload magnets and files, check magnet status, delete magnets, restart magnets, check magnet instant, get saved links, save new links, delete saved links, get recent links, and purge recent links.
 
@@ -34,6 +34,7 @@ Functions
 - delete_saved_link(): Makes a request to the delete saved link endpoint and returns the response from the API.
 - recent_links(): Makes a request to the recent links endpoint and returns the response from the API.
 - purge_recent_links(): Makes a request to the purge recent links endpoint and returns the response from the API.
+- download_file_then_upload_to_alldebrid(): Downloads a file from a URL and uploads it to AllDebrid.
 
 Exceptions
 ----------
@@ -50,14 +51,195 @@ Examples
 import os
 import re
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urljoin
 import time
+from functools import lru_cache
 import requests
-from errors import APIError, MaxAttemptsExceededException
-from endpoints import get_endpoints
-from utils import handle_exceptions
+
+def handle_exceptions(*, exceptions):
+    """
+    Decorator to handle exceptions, if any.
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except exceptions as exc:
+                print(f"Exception occurred: {exc}")
+        return wrapper
+    return decorator
+
+endpoints = {
+    "ping": "ping",
+    "get pin": "pin/get",
+    "check pin": "pin/check",
+    "user": "user",
+    "download link": "link/unlock",
+    "streaming links": "link/streaming",
+    "delayed links": "link/delayed",
+    "upload magnet": "magnet/upload",
+    "upload file": "magnet/upload/file",
+    "status": "magnet/status",
+    "delete": "magnet/delete",
+    "restart": "magnet/restart",
+    "instant": "magnet/instant",
+    "saved links": "user/links",
+    "save a link": "user/links/save",
+    "delete saved link": "user/links/delete",
+    "recent links": "user/history",
+    "purge history": "user/history/delete"
+}
+
+@lru_cache(maxsize=None, typed=False)
+def get_endpoints() -> Dict[str, str]:
+    """
+    Returns a dictionary of the endpoints for the API.
+
+    Returns
+    -------
+    Dict[str, str]
+        A dictionary of the endpoints for the API.
+    """
+    return endpoints
 
 API_HOST = "http://api.alldebrid.com/v4/"
+
+class APIError(Exception):
+    """
+    API error.
+
+    Attributes:
+        _code (str): The error code.
+        _message (str): The error message.
+    """
+    code: str
+    message: str
+
+    def __init__(self, code: str, message: str) -> None:
+        """
+        Initializes a new instance of the AllDebridError class.
+
+        Args:
+            code (str): The error code.
+            message (str): The error message.
+        """
+        super().__init__(f"{code} - {message}")
+        self._code = code
+        self._message = message
+
+    @property
+    def code(self) -> str:
+        """
+        The error code.
+
+        Returns:
+            str: The error code.
+        """
+        return self._code
+    
+    @property
+    def message(self) -> str:
+        """
+        The error message.
+
+        Returns:
+            str: The error message.
+        """
+        return self._message
+    
+class EndpointNotFoundError(Exception):
+    """
+    Endpoint not found error.
+
+    Attributes:
+        _endpoint (str): The endpoint that was not found.
+    """
+    endpoint: str
+
+    def __init__(self, endpoint: str) -> None:
+        """
+        Initializes a new instance of the EndpointNotFoundError class.
+
+        Args:
+            endpoint (str): The endpoint that was not found.
+        """
+        super().__init__(f"Endpoint not found for {endpoint}")
+        self._endpoint = endpoint
+
+    @property
+    def endpoint(self) -> str:
+        """
+        The endpoint that was not found.
+
+        Returns:
+            str: The endpoint that was not found.
+        """
+        return self._endpoint
+    
+class UnknownAPIError(Exception):
+    pass
+
+class MaxAttemptsExceededException(Exception):
+    pass
+    
+apiErrors = {
+    'GENERIC': 'An error occurred',
+    '404': "Endpoint doesn't exist",
+
+    'AUTH_MISSING_AGENT': "You must send a meaningful agent parameter, see api docs",
+    'AUTH_BAD_AGENT': "Bad agent",
+    'AUTH_MISSING_APIKEY': 'The auth apikey was not sent',
+    'AUTH_BAD_APIKEY': 'The auth apikey is invalid',
+    'AUTH_BLOCKED': 'This apikey is geo-blocked or ip-blocked',
+    'AUTH_USER_BANNED': 'This account is banned',
+
+    'LINK_IS_MISSING': 'No link was sent',
+    'LINK_HOST_NOT_SUPPORTED': 'This host or link is not supported',
+    'LINK_DOWN': 'This link is not available on the file hoster website',
+    'LINK_PASS_PROTECTED': 'Link is password protected',
+    'LINK_HOST_UNAVAILABLE': 'Host under maintenance or not available',
+    'LINK_TOO_MANY_DOWNLOADS': 'Too many concurrent downloads for this host',
+    'LINK_HOST_FULL': 'All servers are full for this host, please retry later',
+    'LINK_HOST_LIMIT_REACHED': "You have reached the download limit for this host",
+    'LINK_ERROR': 'Could not unlock this link',
+
+    'REDIRECTOR_NOT_SUPPORTED': 'Redirector not supported',
+    'REDIRECTOR_ERROR': 'Could not extract links',
+
+    'STREAM_INVALID_GEN_ID': 'Invalid generation ID',
+    'STREAM_INVALID_STREAM_ID': 'Invalid stream ID',
+
+    'DELAYED_INVALID_ID': "This delayed link id is invalid",
+
+    'FREE_TRIAL_LIMIT_REACHED': 'You have reached the free trial limit (7 days // 25GB downloaded or host ineligible for free trial)', #pylint: disable=C0301
+    'MUST_BE_PREMIUM': "You must be premium to process this link",
+
+    'MAGNET_INVALID_ID': 'This magnet ID does not exists or is invalid',
+    'MAGNET_INVALID_URI': "Magnet is not valid",
+    'MAGNET_INVALID_FILE': "File is not a valid torrent",
+    'MAGNET_FILE_UPLOAD_FAILED': "File upload failed",
+    'MAGNET_NO_URI': "No magnet sent",
+    'MAGNET_PROCESSING': "Magnet is processing or completed",
+    'MAGNET_TOO_MANY_ACTIVE': "Already have maximum allowed active magnets (30)",
+    'MAGNET_MUST_BE_PREMIUM': "You must be premium to use this feature",
+    'MAGNET_NO_SERVER': "Server are not allowed to use this feature. Visit https://alldebrid.com/vpn if you're using a VPN.", #pylint: disable=C0301
+    'MAGNET_TOO_LARGE': "Magnet files are too large (max 1TB)",
+
+    'PIN_ALREADY_AUTHED': "You already have a valid auth apikey",
+    'PIN_EXPIRED': "The pin is expired",
+    'PIN_INVALID': "The pin is invalid",
+
+    'USER_LINK_MISSING': "No link provided",
+    'USER_LINK_INVALID': "Can't save those links",
+
+    'NO_SERVER': "Server are not allowed to use this feature. Visit https://alldebrid.com/vpn if you're using a VPN.", #pylint: disable=C0301
+
+    'MISSING_NOTIF_ENDPOINT': 'You must provide an endpoint to unsubscribe',
+
+    'VOUCHER_DURATION_INVALID': 'Invalid voucher duration (must be either 15, 30, 90, 180 or 365)',
+    'VOUCHER_NB_INVALID': 'Invalid voucher number, must be between 1 and 10',
+    'NO_MORE_VOUCHER': 'No voucher of this type available in your account',
+    'INSUFFICIENT_BALANCE': 'Your current reseller balance is not enough to generate the requested vouchers', #pylint: disable=C0301
+}
 
 class StreamLinkProcessor:
     """
@@ -117,8 +299,6 @@ class StreamLinkProcessor:
             Exception: Raised when the maximum number of attempts to obtain a delayed link has been reached without success.
         """
         unlock_response = downloader.download_link(link)
-        # data_id = unlock_response["data"]["id"]
-        # stream_id = unlock_response["data"]["streams"][0]["id"]
         data_id = unlock_response.get("data", {}).get("id")
         stream_id = unlock_response.get("data", {}).get("streams", [{}])[0].get("id")
         if not data_id or stream_id:
@@ -966,23 +1146,25 @@ class AllDebrid:
         if self.session is None:
             self.session = requests.Session()
 
+            self.session.mount('http://', requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=50))
+            self.session.mount('https://', requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=50))
+
             if self.proxy is not None:
                 self.session.proxies = {"http": self.proxy, "https": self.proxy}
 
         return self.session
     
     def _build_url(self, endpoint: str, agent: str) -> str:
-        return urljoin(API_HOST, endpoint) + "?agent=" + agent
+        return API_HOST + endpoint + "?agent=" + agent
     
     def _build_data(self, magnets: Optional[str], links: Optional[str]) -> dict:
-        if not magnets:
-            magnets = []
-        elif isinstance(magnets, str):
+        magnets = magnets or []
+        links = links or []
+
+        if isinstance(magnets, str):
             magnets = [magnets]
 
-        if not links:
-            links = []
-        elif isinstance(links, str):
+        if isinstance(links, str):
             links = [links]
 
         data = {'magnets[]': magnets} if magnets else {'links[]': links}
@@ -1010,12 +1192,16 @@ class AllDebrid:
         if expected_response is None:
             expected_response = [200]
 
+        if not method or not url:
+            raise ValueError("Method and URL are required.")
+
         common_params = {
             'headers': auth_header,
             'params': params,
             'files': files,
             'timeout': timeout
         }
+        response = None
 
         try:
             response = session.request(
@@ -1025,16 +1211,10 @@ class AllDebrid:
                 **common_params
             )
             response.raise_for_status()
-        except requests.exceptions.HTTPError as exc:
-            self._handle_error(response, exc)
-        except requests.exceptions.Timeout as exc:
-            self._handle_error(response, exc, status_code=408, message="Request timed out.")
-        except requests.exceptions.ConnectionError as exc:
-            self._handle_error(response, exc, status_code=503, message="Failed to connect to AllDebrid's API.")
         except requests.exceptions.RequestException as exc:
-            self._handle_error(response, exc, status_code=408, message=f"Failed to connect to AllDebrid's API: {url}. Error message: {exc}")
+            self._handle_error(response, exc)
 
-        if response.status_code not in expected_response:
+        if response is not None and response.status_code not in expected_response:
             raise APIError(response.status_code, response.text)
 
         return response.json()
